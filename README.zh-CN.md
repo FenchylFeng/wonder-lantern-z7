@@ -1,0 +1,46 @@
+# WonderLantern Z7 实验项目
+
+[English](README.md)
+
+**实验性固件可能存在数据丢失、死机、失去官方质保等风险。目前尚无经过验证的应急恢复方案。** [风险说明](RISK_NOTICE.md)
+
+本仓库是面向**初代尼康 Z7 C 3.80** 的独立研究分支。项目来源和各组件的提交记录见 [上游清单](UPSTREAMS.json)。
+
+## 当前版本 · 第 3 版 Type A 水平仪
+
+当前 `main` 添加了以下显示屏功能。
+
+- **更多取景网格**：可选 4×4（官方）、3×3 和 2×2，可在自定义设定 d9 控制。
+- **新版电子水平仪**：实现了类似尼康 Z52 等三代机中的 Type-A 电子水平仪。
+- **直方图与水平仪同框**：可选直方图、直方图与水平仪同框、仅水平仪三种显示设置，通过 Disp 按键切换。
+
+当前竖拍修订通过 74 项局部 ARM 检查和 50 项 QEMU 检查，覆盖左右竖拍方向和完整 DISP 循环。当前修订固件在作者的 Z7 实机上执行正常，但不保证在所有环境中都不会出现错误，如果存在错误欢迎提 issue。 [构建和验证说明](DISPLAY_TYPE_A.md)
+
+### 在 Linux 或 WSL 构建第 3 版
+
+准备 Python 3.12、Clang 和 LLD，从尼康下载原版 `Z_7_0380.bin`。将命令中的固件路径替换为本地文件。 [尼康官网下载](https://downloadcenter.nikonimglib.com/zh-cn/download/fw/558.html)
+
+```sh
+python -m pip install -e "./z7-firmware-extensions[type-a]"
+python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .private/build/type-a
+```
+
+构建器先校验官方输入的 SHA-256，再在新的本地目录生成含 CRC 的完整 EG、用于 QEMU 的 MAIN 和构建清单。已验证的工具链版本及文件散列见 [第 3 版构建说明](DISPLAY_TYPE_A.md)。
+
+### 第 3 版原生 Windows 构建 · 暂未完成
+
+第 3 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](WINDOWS_BUILD.md)
+
+## 源码与许可
+
+- `z7-firmware-extensions/` 包含固件构建器及 Type A 绘制源码。
+- `z7-qemu/` 包含 QEMU 源码覆盖层、显示行序修正和模拟器工具。 [QEMU 构建说明](z7-qemu/docs/build.md)
+- `tools/` 包含本地构建及验证脚本。 [实验交接记录](HANDOFF.md)
+
+本仓库按各组件原有许可发布源码。官方固件由使用者自行下载，生成的 EG、MAIN、固件转储和相机截图保存在本地。 [第三方来源与版本](DISPLAY_TYPE_A.md#sources-and-licenses) · [固件扩展许可](z7-firmware-extensions/THIRD_PARTY_NOTICES.md) · [QEMU 版权与许可](z7-qemu/NOTICE.md)
+
+## 上游历史实验
+
+- [三选项网格预览](RELEASE_GRID_PREVIEW.md)记录上游的 3×3、4×4 和关闭选项。相关实机记录对应上游预览构建。
+- [附加网格实验](GRID_LAYOUTS_RESEARCH.md)、[灰色螺旋网格](GRID_SPIRAL_RESEARCH.md)和[简洁取景研究](CLEAN_DISPLAY_RESEARCH.md)各有独立的实现和验证记录。
+- 快门声音、启动画面和扩展设置记录属于上游独立研究。 [上游实验汇总](LAB_REPORT.md) · [上游 Linux／WSL 设置](README.md#historical-upstream-linux--wsl-lab-setup) · [实机验证与恢复边界](FLASH_ASSESSMENT.md)

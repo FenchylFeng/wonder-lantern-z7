@@ -1,22 +1,54 @@
 # WonderLantern Z7 lab
 
-**EXPERIMENTAL CAMERA FIRMWARE RESEARCH. A failed or incorrect flash can
-permanently brick a camera, destroy data, or require paid repair/replacement.
-Use entirely at your own risk. To the fullest extent permitted by law, the
-authors/contributors accept no liability. No warranty or verified emergency
-recovery is provided. Read [RISK_NOTICE.md](RISK_NOTICE.md).**
+[简体中文](README.zh-CN.md)
 
-Independent, modified research workspace for the **original Nikon Z7 C 3.80**.
-This is not an official Nikon or Wonder Lantern release. Component licenses,
-credits and notices are preserved; see [UPSTREAMS.json](UPSTREAMS.json).
+**Experimental firmware may cause data loss, make the camera unresponsive,
+or affect Nikon warranty coverage. An emergency recovery procedure has yet
+to be verified.** [Risk notice](RISK_NOTICE.md)
 
-## Type A monitor experiment
+This independent research fork targets the **original Nikon Z7 C 3.80**.
+See [UPSTREAMS.json](UPSTREAMS.json) for project sources and component revisions.
 
-This fork adds 2x2 and 3x3 framing grids, a lower-right histogram on the
-virtual-horizon display, and a separate horizon-only DISP page. See the
-[Type A build and source notes](DISPLAY_TYPE_A.md).
+## Current version · V3 Type A monitor
 
-## Experimental 3x3 grid preview
+The current `main` adds these monitor features.
+
+- **More framing grids** are available under Custom Setting d9, including the
+  standard 4×4 grid and the added 3×3 and 2×2 grids.
+- **Updated virtual horizon** uses a layout similar to Type A on newer Nikon
+  models such as the Z5II.
+- **Histogram and horizon together** is one of three views available with the
+  DISP button, alongside histogram only and horizon only.
+
+The current portrait revision passed 74 isolated ARM checks and 50 QEMU checks,
+covering both portrait orientations and the full DISP cycle. The author reports
+that this revision works on their Z7. Results may vary on other cameras.
+Please [open an issue](https://github.com/FenchylFeng/wonder-lantern-z7/issues)
+if you encounter a problem. [Build and validation notes](DISPLAY_TYPE_A.md)
+
+### Build V3 on Linux or WSL
+
+Use Python 3.12, Clang and LLD. Obtain the original `Z_7_0380.bin` from
+[Nikon](https://downloadcenter.nikonimglib.com/en/download/fw/558.html).
+
+```sh
+python -m pip install -e "./z7-firmware-extensions[type-a]"
+python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .private/build/type-a
+```
+
+The builder first checks the official input's SHA-256, then writes the full EG
+with its CRC, the QEMU MAIN image, and a build manifest to a new local directory.
+See the [V3 build notes](DISPLAY_TYPE_A.md) for the verified toolchain and hashes.
+
+### Native Windows build for V3 · Pending
+
+Validation of the V3 patcher on native Windows is pending. The repository's
+`Setup-Z7.ps1` and `Start-Z7.cmd` belong to the upstream workflow.
+[Upstream Windows emulator notes](WINDOWS_BUILD.md)
+
+## Earlier upstream work
+
+### Experimental 3x3 grid preview
 
 [Experimental source/patcher prerelease v0.1.0-grid-preview.1](https://github.com/tylermcm/WonderLanternZ7/releases/tag/v0.1.0-grid-preview.1)
 
@@ -40,7 +72,7 @@ recorded separately in `evidence/20261026-grid-saved-owner-hardware.json`.
 Off intentionally clears the selected type; presets/import/export, indirect
 consumers, wake behavior, extended use and failure recovery need further review.
 
-## Other lab experiments
+### Other lab experiments
 
 The optional [additional-grid lab candidate](GRID_LAYOUTS_RESEARCH.md) adds
 Golden ratio, Center cross and 6x6 alongside 4x4, 3x3 and Off. Menu, drawing
@@ -97,7 +129,7 @@ The two component directories are vendored source snapshots, **not submodules**.
 Their upstream licenses and notices remain in place. This repository is a modified
 research workspace and does not claim to be an official WonderLantern release.
 
-## Windows app
+## Historical upstream Windows emulator setup
 
 The lab also supports native Windows using an isolated MSYS2/UCRT64 build.
 It does not require WSL. After setup, double-click `Start-Z7.cmd` to open the
@@ -118,7 +150,7 @@ builds the hash-checked QEMU source and all four firmware presets, and checks
 the native host contracts and candidate admission. It preserves existing firmware and build directories.
 See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for rebuilding and validation commands.
 
-## Linux / WSL setup
+## Historical upstream Linux / WSL lab setup
 
 Use Linux or WSL with Python 3.12+. In an already installed Ubuntu environment:
 

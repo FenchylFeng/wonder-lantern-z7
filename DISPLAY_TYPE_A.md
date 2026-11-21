@@ -30,8 +30,8 @@ private.
 
 The matching image passed 74 isolated ARM checks and 50 QEMU photo-monitor
 checks, including both portrait orientation states and the full DISP cycle.
-The tests supplied simulated photo, histogram and pose data. Installation and
-boot on a physical camera remain unverified for this exact image.
+The tests supplied simulated photo, histogram and pose data. The author also
+reports normal operation of the current revision on their own Z7.
 
 ## Sources and licenses
 
