@@ -10,6 +10,12 @@ Independent, modified research workspace for the **original Nikon Z7 C 3.80**.
 This is not an official Nikon or Wonder Lantern release. Component licenses,
 credits and notices are preserved; see [UPSTREAMS.json](UPSTREAMS.json).
 
+## Type A monitor experiment
+
+This fork adds 2x2 and 3x3 framing grids, a lower-right histogram on the
+virtual-horizon display, and a separate horizon-only DISP page. See the
+[Type A build and source notes](DISPLAY_TYPE_A.md).
+
 ## Experimental 3x3 grid preview
 
 [Experimental source/patcher prerelease v0.1.0-grid-preview.1](https://github.com/tylermcm/WonderLanternZ7/releases/tag/v0.1.0-grid-preview.1)

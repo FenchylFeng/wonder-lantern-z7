@@ -325,6 +325,14 @@ static void z7_gpu_pair_write(uint8_t *a, uint8_t *b, unsigned fmt,
     }
 }
 
+/* C 3.80 LCD live-view GUI backing store in the modeled GUI pool.
+ * Native CPU drawing writes its rows top-down. The adjacent DISP 4
+ * information page has a separate backing store and presentation path. */
+static bool z7_live_rgba(uint32_t address, unsigned width, unsigned height)
+{
+    return address == 0xb045f200 && width == 720 && height == 480;
+}
+
 static bool z7_gpu_draw(Z7GPU *g, const uint32_t *r, Z7GPUPath *p)
 {
     unsigned w = r[0x1a3] & 65535, h = r[0x1a3] >> 16, mode = r[0x184] & 255;
@@ -400,6 +408,13 @@ static bool z7_gpu_draw(Z7GPU *g, const uint32_t *r, Z7GPUPath *p)
      * RGBA, as with RGBA image storage. Captured no-card paint ff4848f0
      * is R=240,G=72,B=72. ARGB here swaps every colored solid/A8 icon. */
     double color[4] = {r[0x185]&255, (r[0x185]>>8)&255, (r[0x185]>>16)&255, r[0x185]>>24};
+    bool gui_target = !dfmt && z7_live_rgba(r[0x1a4], w, h);
+    bool gui_texture = (fmt == 0 || fmt == 0x100) && z7_live_rgba(r[0x155], tw, th);
+    /* The information bitmap is already laid out by the GPU. Its LCD
+     * composition needs an origin conversion on the source only. The
+     * physical overlay planes and the rest of the GUI pool are unaffected. */
+    bool info_to_lcd = dfmt == 0x107 && w == 1024 && h == 682 &&
+                       r[0x155] == 0xb090f200 && tw == 720 && th == 480;
     for (int iy = y0; iy < y1; iy++) {
         memset(mask, 0, w);
         for (int sample = 0; sample < 4; sample++) {
@@ -431,7 +446,7 @@ static bool z7_gpu_draw(Z7GPU *g, const uint32_t *r, Z7GPUPath *p)
                 double v = (matrix[3]*x + matrix[4]*y + matrix[5])/z;
                 if (!isfinite(u) || !isfinite(v)) { return false; }
                 int tx = floor(CLAMP(u*tw, 0, tw-1)), ty = floor(CLAMP(v*th, 0, th-1));
-                unsigned index = ty*tw+tx;
+                unsigned index = (gui_texture || info_to_lcd ? th - 1 - ty : ty) * tw + tx;
                 uint8_t sample[4];
                 z7_gpu_pixel_read(tex, tex2, fmt, false, index, sample);
                 for (int c = 0; c < 4; c++) {
@@ -440,7 +455,8 @@ static bool z7_gpu_draw(Z7GPU *g, const uint32_t *r, Z7GPUPath *p)
                 }
             }
             uint8_t pixel[4];
-            size_t index = (size_t)(iy-y_bias)*w+ix;
+            unsigned row = iy - y_bias;
+            size_t index = (size_t)(gui_target ? h - 1 - row : row) * w + ix;
             if (dfmt) {
                 size_t pair = index & ~1ULL;
                 if (!pair_dirty[index/2]) {
@@ -484,9 +500,11 @@ static void z7_gpu_present(Z7GPU *g)
     cpu_physical_memory_read(g->present_address, rgba, W*H*4);
     DisplaySurface *surface = qemu_console_surface(g->console);
     uint8_t *out = surface_data(surface);
+    bool top_down = z7_live_rgba(g->present_address, W, H);
     for (int y = 0; y < H; y++) {
+        int row = top_down ? y : H - 1 - y;
         for (int x = 0; x < W; x++) {
-            uint8_t *p = rgba + ((H-1-y)*W+x)*4;
+            uint8_t *p = rgba + (row * W + x) * 4;
             stl_p(out + y*surface_stride(surface) + x*4, (p[0]<<16)|(p[1]<<8)|p[2]);
         }
     }
@@ -495,8 +513,9 @@ static void z7_gpu_present(Z7GPU *g)
     if (dir) {
         g_autofree char *path = g_strdup_printf("%s/gui-latest.ppm", dir);
         GString *ppm = g_string_new("P6\n720 480\n255\n");
-        for (int y = H-1; y >= 0; y--) {
-            for (int x = 0; x < W; x++) { g_string_append_len(ppm, (char *)rgba + (y*W+x)*4, 3); }
+        for (int y = 0; y < H; y++) {
+            int row = top_down ? y : H - 1 - y;
+            for (int x = 0; x < W; x++) { g_string_append_len(ppm, (char *)rgba + (row*W+x)*4, 3); }
         }
         g_file_set_contents(path, ppm->str, ppm->len, NULL); g_string_free(ppm, true);
     }

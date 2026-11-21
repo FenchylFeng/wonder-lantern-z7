@@ -77,19 +77,27 @@ def configure(plan, grid_functions, code, thirds_table, choices=None):
 
 
 def configure_layouts(plan, code, thirds_table, reader, original, choices):
-    """Optional six-row lab build; keep released three-row output unchanged."""
+    """Select native geometry and normalize the enabled layouts to On."""
     c, call = constant, invoke
-    # Normalize exactly the owned values 2..5. Unknown scalars keep the stock
-    # getter result, return status and flags. Never rewrite the stored value.
+    normalized_values = [value for _, _, _, value, _ in choices if value > 1]
+    # Preserve the released six-layout build's instruction encoding.
+    if normalized_values == [2, 3, 4, 5]:
+        value_gate = 'subs r0,#2; cmp r0,#3; bhi unchanged;'
+    else:
+        value_gate = ''.join(f'cmp r0,#{value}; beq enabled; ' for value in normalized_values)
+        value_gate += 'b unchanged; enabled: '
     plan.put(reader, assemble(f'''
         push {{r4-r8,lr}}; mov r4,r0; mov r5,r1; {call(original)}
         mrs r7,apsr; mov r6,r0; {c('r0', 0x102D)} cmp r4,r0; bne unchanged;
-        cmp r6,#1; bne unchanged; ldr r0,[r5]; subs r0,#2; cmp r0,#3; bhi unchanged;
+        cmp r6,#1; bne unchanged; ldr r0,[r5]; {value_gate}
         movs r0,#1; str r0,[r5];
         unchanged: mov r0,r6; msr APSR_nzcvq,r7; pop {{r4-r8,pc}};
     ''', reader, 160))
-    tables = {1: 0x1064FD90, 2: thirds_table, 3: thirds_table}
-    for value, count in ((4, 1), (5, 5)):
+    tables = {1: 0x1064FD90, 2: thirds_table}
+    for _, _, _, value, count in choices[2:-1]:
+        if count == 2:
+            tables[value] = thirds_table
+            continue
         table = bytearray(plan.image.read(0x1064FD90, 96))
         for record in range(3):
             for offset in (10, 22):
@@ -112,6 +120,15 @@ def configure_layouts(plan, code, thirds_table, reader, original, choices):
             code[name] = f'movs r1,#{value}; {c("r0", 0x102D)} {tail(0x104065B0)}'
     start, end = code['enter'].index('select:'), code['enter'].index('mark:')
     code['enter'] = code['enter'][:start] + selection + code['enter'][end:]
+    if 3 not in tables:
+        plan.features['grid_native'].update(
+            stored_values={label: value for _, label, _, value, _ in choices},
+            normalized_values=normalized_values,
+            layout_tables={str(value): hex(table) for value, table in tables.items()},
+            limitations=['Emulator-only experiment; no hardware installation clearance.',
+                         'Stock selected menu/display consumers treat stored 2 and 4 as Off.',
+                         'Off stores zero and forgets the previous layout.'])
+        return
     # The native descriptor has independent first-line origins and repeat
     # intervals. Adjust these only after Nikon has computed viewport/crop/style.
     # Q16 25033/65536 approximates 1/phi^2. Mirror the second line around the

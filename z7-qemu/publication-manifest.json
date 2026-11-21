@@ -19,7 +19,7 @@
     "docs/research-notes.md": "da6ed765f2f343972b682e59820d553f7e8948e73119506437ff54619ddb7557",
     "docs/testing.md": "cd25fcbbdcc2349817f3ff9798bda63ecd2d681c27bc3563c1d783886ed35788",
     "docs/usage.md": "870a0e09764272c5f6eae662b0749a0d091d4adaf9cf4b8d3bc0dd00ed27cf19",
-    "qemu/nikon-z7-gpu.h": "aaa40063dc6974a77ad210048466dc4baceaf8a59bbeb38c5f2caae9ef9f3ced",
+    "qemu/nikon-z7-gpu.h": "a4174a19ac1599204645a9752632516e15b7e1c18405e19b07aa28394272bc42",
     "qemu/nikon-z7-isp-pixels.h": "ab83ae53c2638310f1843648f135685739f9e443d9c8c9f5abbd85ac28e6a262",
     "qemu/nikon-z7-isp.h": "a299243907fbd9353b884a54fd70ec843a5b71fa71326abeda3b9f85c716e0c9",
     "qemu/nikon-z7-lab.c": "04d3daa6cb979f6dad92138a5121485acee6f1371cb3095824f6537c77600ac3",
