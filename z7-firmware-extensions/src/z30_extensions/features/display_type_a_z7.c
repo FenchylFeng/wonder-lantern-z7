@@ -8,11 +8,13 @@
 #define CONTROLLER (*(volatile const uint32_t *)0xa18293e8u)
 #define SIZE NATIVE(const uint16_t *(*)(unsigned), 0x103fa36au)
 #define SYNC NATIVE(void (*)(void), 0x103fa746u)
+#define FLUSH_DRAW_QUEUE NATIVE(void (*)(void), 0x1042eb0eu)
 #define PUBLISH NATIVE(void (*)(unsigned), 0x103fcb46u)
 #define DIRTY NATIVE(void (*)(uint32_t, unsigned), 0x103fb302u)
 
 #define READ_POSE NATIVE(void (*)(int32_t *), 0x104070deu)
 #define ATAN2_Q16 NATIVE(int32_t (*)(int32_t, int32_t), 0x101b35eau)
+#define READ_BATTERY NATIVE(void (*)(uint32_t *), 0x10437684u)
 enum { HORIZON_ONLY = 5 };
 
 enum { Q16 = 65536 };
@@ -53,13 +55,13 @@ static int marker(int32_t angle)
 #define CPU_BUFFER NATIVE(uint32_t *(*)(uint32_t), 0x101e3ddeu)
 
 enum { WIDTH = 720, HEIGHT = 480, CENTER_X = WIDTH / 2, CENTER_Y = HEIGHT / 2,
-       CROSS_EXTENT = 100, CROSS_LENGTH = 40, CROSS_WIDTH = 4, WING_GAP = CROSS_EXTENT + 4 };
+       CROSS_EXTENT = 100, CROSS_LENGTH = 40, CROSS_WIDTH = 4, WING_GAP = CROSS_EXTENT + 4,
+       PITCH_START = 16, PITCH_END = 42 };
 
 /* Private RGBA values with an alpha value distinct from the native indicators. */
-static const uint32_t roll_ink = 0xf9e8ae00u;
-static const uint32_t pitch_ink = 0xf923d7fcu;
+static const uint32_t outline_ink = 0xf9000000u;
+static const uint32_t white_ink = 0xf9ffffffu;
 static const uint32_t level_ink = 0xf924ff43u;
-static const uint32_t reference_ink = 0xf9a0a0a0u;
 
 static uint32_t *canvas(void)
 {
@@ -77,8 +79,7 @@ static void erase_span(uint32_t *row, int first, int last)
 {
     for (int x = first; x < last; ++x) {
         uint32_t color = row[x];
-        if (color >> 24 == 0xf9 &&
-            (color == roll_ink || color == pitch_ink || color == level_ink || color == reference_ink))
+        if (color == outline_ink || color == white_ink || color == level_ink)
             row[x] = 0;
     }
 }
@@ -101,18 +102,27 @@ static void mark_rect(uint32_t *pixels, int x, int y, int width, int height, uin
     }
 }
 
-static inline __attribute__((always_inline)) void draw_reference(uint32_t *pixels)
+static void outlined_rect(uint32_t *pixels, int x, int y, int w, int h)
+{
+    mark_rect(pixels, x, y, w, 1, outline_ink);
+    mark_rect(pixels, x, y + h - 1, w, 1, outline_ink);
+    mark_rect(pixels, x, y + 1, 1, h - 2, outline_ink);
+    mark_rect(pixels, x + w - 1, y + 1, 1, h - 2, outline_ink);
+    mark_rect(pixels, x + 1, y + 1, w - 2, h - 2, white_ink);
+}
+
+static void draw_reference(uint32_t *pixels)
 {
     /* Scale the four separate strokes in the reference to the LCD canvas. */
     int gap = CROSS_EXTENT - CROSS_LENGTH;
-    mark_rect(pixels, CENTER_X - CROSS_EXTENT, CENTER_Y - CROSS_WIDTH / 2,
-              CROSS_LENGTH, CROSS_WIDTH, reference_ink);
-    mark_rect(pixels, CENTER_X + gap, CENTER_Y - CROSS_WIDTH / 2,
-              CROSS_LENGTH, CROSS_WIDTH, reference_ink);
-    mark_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y - CROSS_EXTENT,
-              CROSS_WIDTH, CROSS_LENGTH, reference_ink);
-    mark_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y + gap,
-              CROSS_WIDTH, CROSS_LENGTH, reference_ink);
+    outlined_rect(pixels, CENTER_X - CROSS_EXTENT, CENTER_Y - CROSS_WIDTH / 2,
+                  CROSS_LENGTH, CROSS_WIDTH);
+    outlined_rect(pixels, CENTER_X + gap, CENTER_Y - CROSS_WIDTH / 2,
+                  CROSS_LENGTH, CROSS_WIDTH);
+    outlined_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y - CROSS_EXTENT,
+                  CROSS_WIDTH, CROSS_LENGTH);
+    outlined_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y + gap,
+                  CROSS_WIDTH, CROSS_LENGTH);
 }
 
 enum { TRIG_UNIT = 4096 };
@@ -159,12 +169,18 @@ static void draw_wings(uint32_t *pixels, int cosine, int sine, uint32_t color)
         if (magnitude(axis) < gap)
             continue;
         int cross = axis * minor / major;
+        uint32_t center = magnitude(axis) == gap ? outline_ink : color;
         if (horizontal) {
-            mark_rect(pixels, CENTER_X + axis, CENTER_Y + cross - 1, 1, 3, color);
+            int x = CENTER_X + axis, y = CENTER_Y + cross;
+            mark_rect(pixels, x, y - 1, 1, 1, outline_ink);
+            mark_rect(pixels, x, y, 1, 1, center);
+            mark_rect(pixels, x, y + 1, 1, 1, outline_ink);
         } else {
-            int x = CENTER_X + cross;
+            int x = CENTER_X + cross, y = CENTER_Y + axis;
             /* A Y-major segment cannot reach either X edge on this canvas. */
-            mark_rect(pixels, x - 1, CENTER_Y + axis, 3, 1, color);
+            mark_rect(pixels, x - 1, y, 1, 1, outline_ink);
+            mark_rect(pixels, x, y, 1, 1, center);
+            mark_rect(pixels, x + 1, y, 1, 1, outline_ink);
         }
     }
 }
@@ -172,16 +188,20 @@ static void draw_wings(uint32_t *pixels, int cosine, int sine, uint32_t color)
 static void draw_pitch(uint32_t *pixels, int cosine, int sine, int displacement, uint32_t color)
 {
     /* Project each pixel onto the horizon tangent and the upward normal. */
-    int radius = 32 + magnitude(displacement);
+    int radius = PITCH_END + 2 + magnitude(displacement);
+    int start = PITCH_START * TRIG_UNIT - TRIG_UNIT / 2;
+    int end = PITCH_END * TRIG_UNIT + TRIG_UNIT / 2;
     for (int y = -radius; y <= radius; ++y) {
         for (int x = -radius; x <= radius; ++x) {
-            int normal = x * sine - y * cosine - displacement * TRIG_UNIT;
-            if (magnitude(normal) > 2 * TRIG_UNIT + TRIG_UNIT / 2)
+            int normal = magnitude(x * sine - y * cosine - displacement * TRIG_UNIT);
+            if (normal > 2 * TRIG_UNIT + TRIG_UNIT / 2)
                 continue;
             int tangent = magnitude(x * cosine + y * sine);
-            if (tangent >= 14 * TRIG_UNIT - TRIG_UNIT / 2 &&
-                tangent <= 30 * TRIG_UNIT + TRIG_UNIT / 2)
-                mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, color);
+            if (tangent < start || tangent > end)
+                continue;
+            int border = normal > TRIG_UNIT + TRIG_UNIT / 2 ||
+                         tangent < start + TRIG_UNIT || tangent > end - TRIG_UNIT;
+            mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, border ? outline_ink : color);
         }
     }
 }
@@ -204,8 +224,8 @@ static void draw_level(uint32_t *pixels, int32_t roll, int32_t first, int32_t se
     draw_reference(pixels);
     int32_t from_axis = quadrant_angle % (90 * Q16);
     uint32_t roll_color = from_axis <= Q16 / 2 || from_axis >= 90 * Q16 - Q16 / 2
-        ? level_ink : roll_ink;
-    uint32_t pitch_color = magnitude(pitch) <= Q16 / 2 ? level_ink : pitch_ink;
+        ? level_ink : white_ink;
+    uint32_t pitch_color = magnitude(pitch) <= Q16 / 2 ? level_ink : white_ink;
     sine = roll < 0 ? -sine : sine;
     cosine = absolute > 90 * Q16 ? -cosine : cosine;
     draw_wings(pixels, cosine, sine, roll_color);
@@ -246,5 +266,103 @@ int paint_horizon(uint32_t widget)
         draw_level(pixels, roll, angles[1], angles[2]);
     PUBLISH(0);
     DIRTY(widget, 0);
+    return 1;
+}
+
+/* BatteryCheckService returns the same 56-byte report used by Battery info. */
+static int battery_percent(void)
+{
+    uint32_t report[14];
+    READ_BATTERY(report);
+    const uint8_t *state = (const uint8_t *)report;
+    if (!report[0] || state[7] > 1 || state[4] == 0 || state[4] == 3 ||
+        state[4] == 4 || state[4] == 5 || state[4] > 6)
+        return -1;
+    unsigned slot = state[7] * 6;
+    if (state[9 + slot * 4] != 1 || report[6 + slot] > 100)
+        return -1;
+    return (int)report[6 + slot];
+}
+
+#define GLYPH(a,b,c,d,e) ((a) << 12 | (b) << 9 | (c) << 6 | (d) << 3 | (e))
+
+static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
+{
+    static const uint16_t glyphs[] = {
+        GLYPH(7,5,5,5,7), GLYPH(2,6,2,2,7), GLYPH(7,1,7,4,7),
+        GLYPH(7,1,7,1,7), GLYPH(5,5,7,1,1), GLYPH(7,4,7,1,7),
+        GLYPH(7,4,7,5,7), GLYPH(7,1,2,2,2), GLYPH(7,5,7,5,7),
+        GLYPH(7,5,7,1,7), GLYPH(5,1,2,4,5),
+    };
+    enum { BODY_WIDTH = 56, ICON_WIDTH = 60, ICON_HEIGHT = 32, SCALE = 3 };
+    uint8_t digits[4];
+    unsigned count = 0;
+    if (percent == 100)
+        digits[count++] = 1;
+    if (percent >= 10)
+        digits[count++] = (percent / 10) % 10;
+    digits[count++] = percent % 10;
+    digits[count++] = 10;
+
+    uint32_t ink = percent <= 20 ? 0xff3939f5u : 0xfff8f8f8u;
+    for (int dy = 0; dy < ICON_HEIGHT; ++dy) {
+        uint32_t *row = pixels + (y + dy) * WIDTH + x;
+        for (int dx = 0; dx < ICON_WIDTH; ++dx) {
+            uint32_t color = 0;
+            if (dx < BODY_WIDTH && dy >= 2 && dy < 30) {
+                color = dx < 2 || dx >= BODY_WIDTH - 2 || dy < 4 || dy >= 28
+                    ? ink : 0xc0000000u;
+            } else if (dx >= BODY_WIDTH && dy >= 11 && dy < 21) {
+                color = ink;
+            }
+            row[dx] = color;
+        }
+    }
+
+    int left = x + (BODY_WIDTH - (int)(count * 4 * SCALE - SCALE)) / 2;
+    for (unsigned i = 0; i < count; ++i) {
+        unsigned bits = glyphs[digits[i]];
+        for (int row = 0; row < 5; ++row) {
+            for (int col = 0; col < 3; ++col) {
+                if (!(bits & (1u << (14 - 3 * row - col))))
+                    continue;
+                for (int dy = 0; dy < SCALE; ++dy)
+                    for (int dx = 0; dx < SCALE; ++dx)
+                        pixels[(y + 8 + row * SCALE + dy) * WIDTH + left + col * SCALE + dx] = ink;
+            }
+        }
+        left += 4 * SCALE;
+    }
+}
+
+__attribute__((section(".text.battery")))
+int paint_battery(const uint32_t *image)
+{
+    /* The native monitor submits a shadow and a foreground for the same
+       60x32 battery widget on the shooting HUD. Leave other jobs to Nikon. */
+    unsigned page = DISP;
+    if (OUTPUT != 0 || (page > 3 && page != HORIZON_ONLY) ||
+        image[0] != 1 || image[1] != 7 ||
+        image[5] != (32u << 16 | 60u) ||
+        image[6] != (396u << 16 | 2u) || image[7] != (428u << 16 | 62u))
+        return 0;
+    uint32_t pass = image[8];
+    if ((pass & 0xff) != 0xff)
+        return 0;
+    int percent = battery_percent();
+    if (percent < 0)
+        return 0;
+    const uint16_t *size = SIZE(0);
+    if (!size || size[0] != WIDTH || size[1] != HEIGHT)
+        return 0;
+    uint32_t *pixels = canvas();
+    if (!pixels)
+        return 0;
+    if (pass != 0x000000ffu) {
+        /* The submitting renderer already holds the graphics lock. */
+        FLUSH_DRAW_QUEUE();
+        draw_battery(pixels, 2, 396, (unsigned)percent);
+        PUBLISH(0);
+    }
     return 1;
 }

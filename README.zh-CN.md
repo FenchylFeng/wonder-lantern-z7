@@ -6,30 +6,31 @@
 
 本仓库是面向**初代尼康 Z7 C 3.80** 的独立研究分支。项目来源和各组件的提交记录见 [上游清单](UPSTREAMS.json)。
 
-## 当前版本 · 第 3 版 Type A 水平仪
+## 当前版本 · 第 4 版取景显示
 
-当前 `main` 添加了以下显示屏功能。
+第 4 版包含以下显示屏功能。
 
 - **更多取景网格**：可选 4×4（官方）、3×3 和 2×2，可在自定义设定 d9 控制。
-- **新版电子水平仪**：实现了类似尼康 Z52 等三代机中的 Type-A 电子水平仪。
+- **Type A 电子水平仪**延长了俯仰线。横滚线、俯仰线和固定十字使用黑色描边、白色填充。横滚和俯仰线各自调平时填充绿色。
 - **直方图与水平仪同框**：可选直方图、直方图与水平仪同框、仅水平仪三种显示设置，通过 Disp 按键切换。
+- **电量百分比**显示在取景页的电池图标内。电量在 20% 及以下时显示红色。
 
-当前竖拍修订通过 74 项局部 ARM 检查和 50 项 QEMU 检查，覆盖左右竖拍方向和完整 DISP 循环。当前修订固件在作者的 Z7 实机上执行正常，但不保证在所有环境中都不会出现错误，如果存在错误欢迎提 issue。 [构建和验证说明](DISPLAY_TYPE_A.md)
+作者的 Z7 实机测试记录对应第 3 版。 [第 3 版构建和验证说明](DISPLAY_TYPE_A.md)
 
-### 在 Linux 或 WSL 构建第 3 版
+### 在 Linux 或 WSL 构建第 4 版
 
 准备 Python 3.12、Clang 和 LLD，从尼康下载原版 `Z_7_0380.bin`。将命令中的固件路径替换为本地文件。 [尼康官网下载](https://downloadcenter.nikonimglib.com/zh-cn/download/fw/558.html)
 
 ```sh
 python -m pip install -e "./z7-firmware-extensions[type-a]"
-python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .private/build/type-a
+python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .private/build/display-v4
 ```
 
-构建器先校验官方输入的 SHA-256，再在新的本地目录生成含 CRC 的完整 EG、用于 QEMU 的 MAIN 和构建清单。已验证的工具链版本及文件散列见 [第 3 版构建说明](DISPLAY_TYPE_A.md)。
+构建器先校验官方输入的 SHA-256，再在新的本地目录生成含 CRC 的完整 EG、用于 QEMU 的 MAIN 和构建清单。 [第 4 版构建和验证说明](docs/DISPLAY_V4.md)
 
-### 第 3 版原生 Windows 构建 · 暂未完成
+### 原生 Windows 构建 · 暂未完成
 
-第 3 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](docs/archive/WINDOWS_BUILD.md)
+第 4 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](docs/archive/WINDOWS_BUILD.md)
 
 ## 源码与许可
 

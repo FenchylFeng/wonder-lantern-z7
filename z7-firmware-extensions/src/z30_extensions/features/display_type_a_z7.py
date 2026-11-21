@@ -1,4 +1,4 @@
-"""Build the original Z7 C 3.80 four-grid and Type A monitor experiment."""
+"""Build the Z7 C 3.80 V4 photo-monitor experiment."""
 
 import hashlib
 from pathlib import Path
@@ -30,8 +30,8 @@ def _append_renderer(plan, clang, lld):
         layout.write_text(f"""ENTRY(paint_horizon)
 SECTIONS {{
  . = {address:#x};
- .entries : {{ LONG(paint_horizon & ~1); LONG(clear_horizon & ~1); }}
- .text : {{ *(.text.paint) . = ALIGN(4); *(.text.clear) *(.text*) }}
+ .entries : {{ LONG(paint_horizon & ~1); LONG(clear_horizon & ~1); LONG(paint_battery & ~1); }}
+ .text : {{ *(.text.paint) . = ALIGN(4); *(.text.clear) . = ALIGN(4); *(.text.battery) *(.text*) }}
  .rodata : {{ *(.rodata*) }}
  /DISCARD/ : {{ *(.ARM.exidx*) *(.ARM.extab*) *(.comment*) *(.ARM.attributes*) }}
 }}
@@ -42,9 +42,9 @@ SECTIONS {{
                         Path(__file__).with_suffix(".c"), "-o", obj], check=True)
         subprocess.run([lld, "-T", layout, "--oformat=binary", obj, "-o", image], check=True)
         binary = image.read_bytes()
-    entries = struct.unpack_from("<2I", binary)
-    if not all(address + 8 <= entry < address + len(binary) and entry % 4 == 0 for entry in entries):
-        raise ValueError("Unexpected virtual-horizon entry offsets")
+    entries = struct.unpack_from("<3I", binary)
+    if not all(address + 12 <= entry < address + len(binary) and entry % 4 == 0 for entry in entries):
+        raise ValueError("Unexpected monitor renderer entry offsets")
     plan.alloc(binary)
     return entries
 
@@ -174,7 +174,7 @@ def _horizon_page(plan):
 
 
 def _horizon(plan, clang, lld):
-    entries = _append_renderer(plan, clang, lld)
+    *entries, battery = _append_renderer(plan, clang, lld)
     for (address, window, name), entry in zip(HORIZON_SITES, entries, strict=True):
         expected = bytes.fromhex(window)
         ops = _instructions(plan, address, expected)
@@ -193,7 +193,23 @@ def _horizon(plan, clang, lld):
     _horizon_page(plan)
     plan.features["horizon"] = dict(style="Type A-inspired central axes", output="shooting LCD 720x480",
                                     paint=hex(entries[0]), clear=hex(entries[1]),
-                                    display_states=[3, 5], roll_degrees=360, cycle=[0, 1, 2, 3, 5, 4])
+                                    display_states=[3, 5], roll_degrees=360, cycle=[0, 1, 2, 3, 5, 4],
+                                    pitch_stroke_length=27, outline_pixels=1)
+    _battery(plan, battery)
+
+
+def _battery(plan, renderer):
+    address, expected = 0x10430256, bytes.fromhex("30b5a1b0044600251f95")
+    ops = _instructions(plan, address, expected)
+    _install(plan, address, expected, "Replace the native monitor battery icon with its percentage", f"""
+        push.w {{r0-r3,r12,lr}}; {invoke(renderer)} cbz r0,original;
+        pop.w {{r0-r3,r12,pc}};
+        original: pop.w {{r0-r3,r12,lr}}; {_replay(plan, ops)}
+        {tail(address + len(expected))}
+    """)
+    plan.features["battery"] = dict(source="native BatteryCheckService",
+                                    draw_site=hex(address), bounds=[2, 396, 62, 428],
+                                    low_charge_threshold=20)
 
 
 def build(container, llvm_bin=None):
@@ -219,6 +235,6 @@ def build(container, llvm_bin=None):
     heap = grid_z7.HEAP_SITE - z7_380.BASE
     if eg[heap:heap + len(grid_z7.HEAP_EXPECTED)] != grid_z7.HEAP_EXPECTED:
         raise ValueError("Native heap initialization changed")
-    report.update(preset="z7-inline-type-a-portrait-emulator-only", profile="type-a-portrait",
+    report.update(preset="z7-inline-display-v4-emulator-only", profile="display-v4",
                   main_payload_sha256=hashlib.sha256(eg[:-2]).hexdigest())
     return eg, report
