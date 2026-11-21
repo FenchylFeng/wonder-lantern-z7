@@ -10,7 +10,7 @@ porting errors prevent the old request path from reaching normal playback.
 ## WAV requirements and actual file
 
 The authoritative local requirements are in
-[`docs/shutter-sound.md`](z7-firmware-extensions/docs/shutter-sound.md),
+[`docs/shutter-sound.md`](../../z7-firmware-extensions/docs/shutter-sound.md),
 `tools/prepare_wav.py`, and the generated `sound_audio_z7.py` validator.
 
 | Field | Required | Staged test file |
@@ -93,7 +93,7 @@ successful isolated retry used the normal host socket permissions. Neither
 attempt accessed a camera. These checks cannot prove physical sound.
 
 Sanitized results are in
-[`evidence/20261021-audio-playback-fix.json`](evidence/20261021-audio-playback-fix.json).
+[`evidence/20261021-audio-playback-fix.json`](../../evidence/20261021-audio-playback-fix.json).
 
 The corrected candidate was staged as E:\EG161080.BIN on the verified Sony
 QD-G240F card at 2026-10-22 03:08 UTC, with complete SHA-256 readback matching

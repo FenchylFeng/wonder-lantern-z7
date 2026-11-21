@@ -1,9 +1,11 @@
 # Continuing this lab
 
-Read HANDOFF.md first. Source snapshots are vendored directories, not submodules.
+Read README.md for the current build and docs/archive/HANDOFF.md for upstream history.
+Source snapshots are vendored directories, not submodules.
 Keep Nikon firmware, generated binaries, dumps, keys and camera screenshots private.
 Preserve per-component licenses and identify modified releases as independent work.
-Use the root laptop setup instructions; component docs retain upstream environment examples.
+Use the root README setup instructions for V3. The archive and component docs
+retain upstream environment examples.
 Run relevant checks and record their scope. Emulator success does not establish
 camera update acceptance or recovery. Do not flash a camera without explicit user
 authorization and a concrete reviewable installation/recovery assessment.

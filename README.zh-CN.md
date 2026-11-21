@@ -29,18 +29,16 @@ python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .pr
 
 ### 第 3 版原生 Windows 构建 · 暂未完成
 
-第 3 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](WINDOWS_BUILD.md)
+第 3 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](docs/archive/WINDOWS_BUILD.md)
 
 ## 源码与许可
 
 - `z7-firmware-extensions/` 包含固件构建器及 Type A 绘制源码。
 - `z7-qemu/` 包含 QEMU 源码覆盖层、显示行序修正和模拟器工具。 [QEMU 构建说明](z7-qemu/docs/build.md)
-- `tools/` 包含本地构建及验证脚本。 [实验交接记录](HANDOFF.md)
+- `tools/` 包含本地构建及验证脚本。 [实验交接记录](docs/archive/HANDOFF.md)
 
 本仓库按各组件原有许可发布源码。官方固件由使用者自行下载，生成的 EG、MAIN、固件转储和相机截图保存在本地。 [第三方来源与版本](DISPLAY_TYPE_A.md#sources-and-licenses) · [固件扩展许可](z7-firmware-extensions/THIRD_PARTY_NOTICES.md) · [QEMU 版权与许可](z7-qemu/NOTICE.md)
 
-## 上游历史实验
+## 上游历史文档
 
-- [三选项网格预览](RELEASE_GRID_PREVIEW.md)记录上游的 3×3、4×4 和关闭选项。相关实机记录对应上游预览构建。
-- [附加网格实验](GRID_LAYOUTS_RESEARCH.md)、[灰色螺旋网格](GRID_SPIRAL_RESEARCH.md)和[简洁取景研究](CLEAN_DISPLAY_RESEARCH.md)各有独立的实现和验证记录。
-- 快门声音、启动画面和扩展设置记录属于上游独立研究。 [上游实验汇总](LAB_REPORT.md) · [上游 Linux／WSL 设置](README.md#historical-upstream-linux--wsl-lab-setup) · [实机验证与恢复边界](FLASH_ASSESSMENT.md)
+早期网格预览、模拟器环境、快门声音等实验记录见 [上游文档归档](docs/archive/README.md)。

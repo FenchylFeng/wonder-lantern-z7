@@ -289,6 +289,7 @@ def main():
                           'Same-version camera acceptance and emergency boot recovery remain unverified.',
                           'Stock copies are rollback inputs, not a proven recovery mechanism.',
                           'No full-container header digest was recomputed or validated.'])
+    report['installation_assessment'] = 'docs/archive/' + report['installation_assessment']
     output.mkdir(parents=True, exist_ok=False)
     files = {'candidate/EG161080.BIN': candidate, 'stock-module/EG161080.BIN': stock,
              'stock-container/Z_7_0380.bin': raw}
@@ -302,7 +303,7 @@ def main():
     (output / 'review.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     (output / 'READ-ME-FIRST.txt').write_text(
         'OFFLINE REVIEW ONLY. CAMERA INSTALLATION IS NOT YET VALIDATED.\n'
-        'Read the project FLASH_ASSESSMENT.md before any card/camera write.\n'
+        'Read docs/archive/FLASH_ASSESSMENT.md before any card/camera write.\n'
         f"Read the exact-candidate assessment: {report['installation_assessment']}\n"
         'candidate/ contains the full independent modified EG module with its CRC.\n'
         'stock-module/ and stock-container/ are untouched inputs, kept separately.\n'

@@ -6,7 +6,7 @@
 > that these are absent/dormant on the original model are superseded. Nikon also
 > [documents NP3 separately from Flexible Color compatibility](https://nikonimglib.com/nxstdo/onlinehelp/en/copy_custom_picture_controls_50.html);
 > NP3 alone does not mean EXPEED 7/Flexible Color. Read the independent lab's
-> [film-roll assessment](../../FILM_ROLL_FEASIBILITY.md) before using this report.
+> [film-roll assessment](../../docs/archive/FILM_ROLL_FEASIBILITY.md) before using this report.
 > Its claimed parser model-field derivation is also unsubstantiated: original
 > 0x102D8562 stores a supplied context word; the 0x04390080 comparison follows
 > another operation at 0x102D8566. The inherited text is retained as provenance,

@@ -6,7 +6,7 @@ No firmware is downloaded by the helpers and no camera is accessed.
 
 The October 21 native run passed 21 general UI checks, 17 menu checks for each
 sound-capable preset, and the host/firmware checks recorded in
-[the sanitized validation summary](evidence/20261021-windows-validation.json).
+[the sanitized validation summary](../../evidence/20261021-windows-validation.json).
 
 ## Start the prepared app
 

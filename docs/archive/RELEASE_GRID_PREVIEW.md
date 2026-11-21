@@ -6,7 +6,7 @@ RISK. TO THE FULLEST EXTENT PERMITTED BY LAW, THE AUTHORS, CONTRIBUTORS,
 MAINTAINERS AND DISTRIBUTORS ACCEPT NO LIABILITY FOR RESULTING DAMAGE OR LOSS.
 NO WARRANTY AND NO VERIFIED EMERGENCY RECOVERY ARE PROVIDED.**
 
-Read [RISK_NOTICE.md](RISK_NOTICE.md) before building or installing anything.
+Read [RISK_NOTICE.md](../../RISK_NOTICE.md) before building or installing anything.
 This is an independent experimental release, not an official Nikon or Wonder
 Lantern release. A disclaimer does not make installation safe.
 
@@ -98,5 +98,5 @@ Do not infer safety or general support from one owner's successful test.
 Built on the research and source provided by
 [WonderLantern/z7-qemu](https://github.com/WonderLantern/z7-qemu) and
 [totwoto02/z7-firmware-extensions](https://github.com/totwoto02/z7-firmware-extensions).
-Their original notices/licenses are preserved. See [UPSTREAMS.json](UPSTREAMS.json)
+Their original notices/licenses are preserved. See [UPSTREAMS.json](../../UPSTREAMS.json)
 for the vendored source provenance. This repository's changes are independent work.
