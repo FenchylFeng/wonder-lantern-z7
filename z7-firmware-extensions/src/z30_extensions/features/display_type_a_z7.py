@@ -194,7 +194,8 @@ def _horizon(plan, clang, lld):
     plan.features["horizon"] = dict(style="Type A-inspired central axes", output="shooting LCD 720x480",
                                     paint=hex(entries[0]), clear=hex(entries[1]),
                                     display_states=[3, 5], roll_degrees=360, cycle=[0, 1, 2, 3, 5, 4],
-                                    pitch_stroke_length=27, outline_pixels=1)
+                                    pitch_stroke_length=27, roll_pitch_width=5, outline_pixels=1,
+                                    pitch_displacement_ratio=[2, 3])
     _battery(plan, battery)
 
 
@@ -209,7 +210,8 @@ def _battery(plan, renderer):
     """)
     plan.features["battery"] = dict(source="native BatteryCheckService",
                                     draw_site=hex(address), bounds=[2, 396, 62, 428],
-                                    low_charge_threshold=20)
+                                    low_charge_threshold=20,
+                                    glyph_size=[11, 19], glyph_coverage_levels=4)
 
 
 def build(container, llvm_bin=None):

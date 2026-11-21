@@ -48,7 +48,7 @@ static int marker(int32_t angle)
         angle = limit;
     if (angle < -limit)
         angle = -limit;
-    return angle * 56 / limit;
+    return angle * (2 * 56) / (3 * limit);
 }
 
 #define LCD_BUFFER (*(volatile const uint32_t *)0xa1821374u)
@@ -125,7 +125,8 @@ static void draw_reference(uint32_t *pixels)
                   CROSS_WIDTH, CROSS_LENGTH);
 }
 
-enum { TRIG_UNIT = 4096 };
+enum { TRIG_UNIT = 4096, STROKE_HALF_WIDTH = 5 * TRIG_UNIT / 2,
+       FILL_HALF_WIDTH = STROKE_HALF_WIDTH - TRIG_UNIT };
 
 /* Positive quadrant sine, interpolated in the native Q16-degree domain. */
 static int quarter_sine(int32_t angle)
@@ -164,23 +165,19 @@ static void draw_wings(uint32_t *pixels, int cosine, int sine, uint32_t color)
     int major = horizontal ? cosine : sine;
     int minor = horizontal ? sine : cosine;
     int extent = horizontal ? CENTER_X : CENTER_Y;
-    int gap = (WING_GAP * magnitude(major) + TRIG_UNIT / 2) / TRIG_UNIT;
+    int inner = WING_GAP * TRIG_UNIT;
+    int reach = (STROKE_HALF_WIDTH + magnitude(major) - 1) / magnitude(major);
     for (int axis = -extent; axis < extent; ++axis) {
-        if (magnitude(axis) < gap)
-            continue;
-        int cross = axis * minor / major;
-        uint32_t center = magnitude(axis) == gap ? outline_ink : color;
-        if (horizontal) {
-            int x = CENTER_X + axis, y = CENTER_Y + cross;
-            mark_rect(pixels, x, y - 1, 1, 1, outline_ink);
-            mark_rect(pixels, x, y, 1, 1, center);
-            mark_rect(pixels, x, y + 1, 1, 1, outline_ink);
-        } else {
-            int x = CENTER_X + cross, y = CENTER_Y + axis;
-            /* A Y-major segment cannot reach either X edge on this canvas. */
-            mark_rect(pixels, x - 1, y, 1, 1, outline_ink);
-            mark_rect(pixels, x, y, 1, 1, center);
-            mark_rect(pixels, x + 1, y, 1, 1, outline_ink);
+        int center = axis * minor / major;
+        for (int cross = center - reach; cross <= center + reach; ++cross) {
+            int x = horizontal ? axis : cross;
+            int y = horizontal ? cross : axis;
+            int normal = magnitude(x * sine - y * cosine);
+            int tangent = magnitude(x * cosine + y * sine);
+            if (normal > STROKE_HALF_WIDTH || tangent < inner)
+                continue;
+            int border = normal > FILL_HALF_WIDTH || tangent < inner + TRIG_UNIT;
+            mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, border ? outline_ink : color);
         }
     }
 }
@@ -194,12 +191,12 @@ static void draw_pitch(uint32_t *pixels, int cosine, int sine, int displacement,
     for (int y = -radius; y <= radius; ++y) {
         for (int x = -radius; x <= radius; ++x) {
             int normal = magnitude(x * sine - y * cosine - displacement * TRIG_UNIT);
-            if (normal > 2 * TRIG_UNIT + TRIG_UNIT / 2)
+            if (normal > STROKE_HALF_WIDTH)
                 continue;
             int tangent = magnitude(x * cosine + y * sine);
             if (tangent < start || tangent > end)
                 continue;
-            int border = normal > TRIG_UNIT + TRIG_UNIT / 2 ||
+            int border = normal > FILL_HALF_WIDTH ||
                          tangent < start + TRIG_UNIT || tangent > end - TRIG_UNIT;
             mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, border ? outline_ink : color);
         }
@@ -284,17 +281,245 @@ static int battery_percent(void)
     return (int)report[6 + slot];
 }
 
-#define GLYPH(a,b,c,d,e) ((a) << 12 | (b) << 9 | (c) << 6 | (d) << 3 | (e))
-
 static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
 {
-    static const uint16_t glyphs[] = {
-        GLYPH(7,5,5,5,7), GLYPH(2,6,2,2,7), GLYPH(7,1,7,4,7),
-        GLYPH(7,1,7,1,7), GLYPH(5,5,7,1,1), GLYPH(7,4,7,1,7),
-        GLYPH(7,4,7,5,7), GLYPH(7,1,2,2,2), GLYPH(7,5,7,5,7),
-        GLYPH(7,5,7,1,7), GLYPH(5,1,2,4,5),
+    enum { BODY_WIDTH = 56, ICON_WIDTH = 60, ICON_HEIGHT = 32,
+           GLYPH_WIDTH = 11, GLYPH_HEIGHT = 19, GLYPH_GAP = 2 };
+    /* Four coverage levels, from transparent space to full ink. */
+    static const uint8_t coverage[] = { ['.'] = 1, ['+'] = 2, ['#'] = 3 };
+    static const char glyphs[][GLYPH_HEIGHT][GLYPH_WIDTH + 1] = {
+        { /* 0 */
+            "           ",
+            "   .###.   ",
+            "  .#####.  ",
+            "  ##+ +##  ",
+            " .##   ##+ ",
+            " +#+   +#+ ",
+            " ##.   .## ",
+            " ##     ##.",
+            ".##     ##.",
+            ".##     ##.",
+            ".##     ##.",
+            " ##     ##.",
+            " ##.   .## ",
+            " +#+   .## ",
+            " .##   ##+ ",
+            "  ##+ +##  ",
+            "  .#####.  ",
+            "   .###.   ",
+            "     .     ",
+        },
+        { /* 1 */
+            "           ",
+            "    +#+    ",
+            "   +###    ",
+            "  +####    ",
+            " .##+##    ",
+            "  ...##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            "    .##    ",
+            " .#######+ ",
+            " .#######+ ",
+            "  .......  ",
+        },
+        { /* 2 */
+            "    ...    ",
+            "  .#####.  ",
+            " .#######. ",
+            " ##+   +## ",
+            " ##.    ## ",
+            " ++     ## ",
+            "       +## ",
+            "      .##. ",
+            "      ##+  ",
+            "     ###   ",
+            "    +##.   ",
+            "   +##.    ",
+            "  .##+     ",
+            "  +#+      ",
+            " .##.      ",
+            " +#+       ",
+            " ######### ",
+            " ######### ",
+            "  .......  ",
+        },
+        { /* 3 */
+            "    ...    ",
+            "  .#####.  ",
+            " +#######. ",
+            " ##+   +#+ ",
+            "       .## ",
+            "       .## ",
+            "       +#+ ",
+            "    ..+##. ",
+            "   .####+  ",
+            "   .#####. ",
+            "      .##+ ",
+            "       .## ",
+            "        ##.",
+            "        ##.",
+            "       .## ",
+            " ##+  .##+ ",
+            " +#######  ",
+            "  .####+   ",
+            "     .     ",
+        },
+        { /* 4 */
+            "           ",
+            "      +#.  ",
+            "      ##+  ",
+            "     +##+  ",
+            "    .###+  ",
+            "    +###+  ",
+            "   .####+  ",
+            "   ##++#+  ",
+            "  +## +#+  ",
+            "  ##+ +#+  ",
+            " +##  +#+  ",
+            ".#########.",
+            ".#########.",
+            " .....+#+. ",
+            "      +#+  ",
+            "      +#+  ",
+            "      +#+  ",
+            "      +#.  ",
+            "       .   ",
+        },
+        { /* 5 */
+            "           ",
+            " .#######+ ",
+            " .#######+ ",
+            " .#+       ",
+            " +#+       ",
+            " +#+       ",
+            " +#+ .     ",
+            " +#####+   ",
+            " +#######  ",
+            " .#+  .##+ ",
+            "       .## ",
+            "        ## ",
+            "        ##.",
+            "       .## ",
+            "       .## ",
+            " ##+. .##+ ",
+            " +#######  ",
+            "  .+###+   ",
+            "           ",
+        },
+        { /* 6 */
+            "     ..    ",
+            "   .####+  ",
+            "  .######+ ",
+            "  +##  .+. ",
+            " .##.      ",
+            " +#+       ",
+            " +#+       ",
+            " ##+###+   ",
+            " ########. ",
+            " ###. .##+ ",
+            " ##.   .## ",
+            " ##     ##.",
+            " ##.    ##.",
+            " ##.    ##.",
+            " +#+   .## ",
+            " .##.  +#+ ",
+            "  +##+###. ",
+            "   +####.  ",
+            "    ...    ",
+        },
+        { /* 7 */
+            "           ",
+            " ######### ",
+            " ######### ",
+            "  .....##+ ",
+            "      .##. ",
+            "      +#+  ",
+            "      ##.  ",
+            "     .##   ",
+            "     +#+   ",
+            "     ##.   ",
+            "    .##    ",
+            "    +#+    ",
+            "    +#.    ",
+            "    ##.    ",
+            "   .##     ",
+            "   .##     ",
+            "   +#+     ",
+            "   +#.     ",
+            "    .      ",
+        },
+        { /* 8 */
+            "     .     ",
+            "   +###+   ",
+            "  #######  ",
+            " +##. .##+ ",
+            " ##+   .## ",
+            " ##.   .## ",
+            " +#+   +## ",
+            " .##+..##. ",
+            "  +#####+  ",
+            "  #######. ",
+            " +##. .##+ ",
+            " ##.   .##.",
+            ".##     ##.",
+            ".##     ##.",
+            " ##.   .##.",
+            " +##.  +#+ ",
+            " .#######. ",
+            "  .+####.  ",
+            "    ...    ",
+        },
+        { /* 9 */
+            "    ..     ",
+            "  .+###+   ",
+            "  ######+  ",
+            " +##  .##. ",
+            " ##.   +#+ ",
+            ".##    .## ",
+            ".##     ## ",
+            ".##     ##.",
+            " ##.   .##.",
+            " +##. .### ",
+            " .######## ",
+            "  .+###### ",
+            "     . +#+ ",
+            "       ##+ ",
+            "      .##. ",
+            "  .   ##+  ",
+            " +##+###   ",
+            " .#####.   ",
+            "   ...     ",
+        },
+        { /* % */
+            "           ",
+            "           ",
+            " .##.   .. ",
+            " ####  .#+ ",
+            ".#..#. +#  ",
+            ".#..#..#+  ",
+            " #### +#   ",
+            " .++..#+   ",
+            "     +#    ",
+            "    .#.    ",
+            "    ##     ",
+            "   .#..++. ",
+            "   ## #### ",
+            "  .#..#..#.",
+            "  #+ .#..#.",
+            " +#.  #### ",
+            " .+   .##. ",
+            "           ",
+            "           ",
+        },
     };
-    enum { BODY_WIDTH = 56, ICON_WIDTH = 60, ICON_HEIGHT = 32, SCALE = 3 };
     uint8_t digits[4];
     unsigned count = 0;
     if (percent == 100)
@@ -305,13 +530,14 @@ static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
     digits[count++] = 10;
 
     uint32_t ink = percent <= 20 ? 0xff3939f5u : 0xfff8f8f8u;
+    const uint32_t background = 0xc0000000u;
     for (int dy = 0; dy < ICON_HEIGHT; ++dy) {
         uint32_t *row = pixels + (y + dy) * WIDTH + x;
         for (int dx = 0; dx < ICON_WIDTH; ++dx) {
             uint32_t color = 0;
             if (dx < BODY_WIDTH && dy >= 2 && dy < 30) {
                 color = dx < 2 || dx >= BODY_WIDTH - 2 || dy < 4 || dy >= 28
-                    ? ink : 0xc0000000u;
+                    ? ink : background;
             } else if (dx >= BODY_WIDTH && dy >= 11 && dy < 21) {
                 color = ink;
             }
@@ -319,19 +545,29 @@ static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
         }
     }
 
-    int left = x + (BODY_WIDTH - (int)(count * 4 * SCALE - SCALE)) / 2;
-    for (unsigned i = 0; i < count; ++i) {
-        unsigned bits = glyphs[digits[i]];
-        for (int row = 0; row < 5; ++row) {
-            for (int col = 0; col < 3; ++col) {
-                if (!(bits & (1u << (14 - 3 * row - col))))
-                    continue;
-                for (int dy = 0; dy < SCALE; ++dy)
-                    for (int dx = 0; dx < SCALE; ++dx)
-                        pixels[(y + 8 + row * SCALE + dy) * WIDTH + left + col * SCALE + dx] = ink;
-            }
+    /* Composite the glyph coverage over the translucent black body. */
+    uint32_t shades[4] = {background, 0, 0, ink};
+    for (unsigned shade = 1; shade < 3; ++shade) {
+        unsigned opacity = 85 * shade;
+        unsigned alpha = 192 + 21 * shade;
+        uint32_t mixed = alpha << 24;
+        for (unsigned shift = 0; shift < 24; shift += 8) {
+            unsigned channel = (ink >> shift) & 0xff;
+            mixed |= ((channel * opacity + alpha / 2) / alpha) << shift;
         }
-        left += 4 * SCALE;
+        shades[shade] = mixed;
+    }
+
+    int text_width = (int)count * (GLYPH_WIDTH + GLYPH_GAP) - GLYPH_GAP;
+    int left = x + (BODY_WIDTH - text_width) / 2;
+    int top = y + (ICON_HEIGHT - GLYPH_HEIGHT) / 2;
+    for (unsigned i = 0; i < count; ++i) {
+        for (int row = 0; row < GLYPH_HEIGHT; ++row) {
+            uint32_t *dest = pixels + (top + row) * WIDTH + left;
+            for (int col = 0; col < GLYPH_WIDTH; ++col)
+                dest[col] = shades[coverage[(unsigned char)glyphs[digits[i]][row][col]]];
+        }
+        left += GLYPH_WIDTH + GLYPH_GAP;
     }
 }
 
