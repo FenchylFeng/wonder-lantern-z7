@@ -15,9 +15,8 @@ V4 includes the following monitor features.
 
 - **More framing grids** are available under Custom Setting d9, including the
   standard 4×4 grid and the added 3×3 and 2×2 grids.
-- **Type A virtual horizon** uses matching widths for the roll and pitch marks
-  and reduces pitch travel to two-thirds of the initial V4 response. Both
-  marks have black outlines and white fills that turn green independently.
+- **Type A virtual horizon** reproduces the Z8 C 3.12 monitor geometry,
+  degree rounding and pitch limits. Roll and pitch turn green independently.
 - **Histogram and horizon together** is one of three views available with the
   DISP button, alongside histogram only and horizon only.
 - **Battery percentage** appears in antialiased numerals inside the shooting

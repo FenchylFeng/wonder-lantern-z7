@@ -13,7 +13,7 @@
 #define DIRTY NATIVE(void (*)(uint32_t, unsigned), 0x103fb302u)
 
 #define READ_POSE NATIVE(void (*)(int32_t *), 0x104070deu)
-#define ATAN2_Q16 NATIVE(int32_t (*)(int32_t, int32_t), 0x101b35eau)
+#define READ_DIRECTION NATIVE(unsigned (*)(void), 0x104070e2u)
 #define READ_BATTERY NATIVE(void (*)(uint32_t *), 0x10437684u)
 enum { HORIZON_ONLY = 5 };
 
@@ -27,41 +27,26 @@ static int supported(void)
     return size && size[0] == 720 && size[1] == 480;
 }
 
-static int magnitude(int value)
-{
-    return value < 0 ? -value : value;
-}
-
-static int pitch_angle(int32_t raw)
-{
-    /* 360-degree encoding, with the two valid ranges near 0 and 180. */
-    int sign = raw > 180 * Q16 ? -1 : 1;
-    if (sign < 0)
-        raw = 360 * Q16 - raw;
-    return sign * (raw > 90 * Q16 ? 180 * Q16 - raw : raw);
-}
-
-static int marker(int32_t angle)
-{
-    int limit = 15 * Q16;
-    if (angle > limit)
-        angle = limit;
-    if (angle < -limit)
-        angle = -limit;
-    return angle * (2 * 56) / (3 * limit);
-}
-
 #define LCD_BUFFER (*(volatile const uint32_t *)0xa1821374u)
 #define CPU_BUFFER NATIVE(uint32_t *(*)(uint32_t), 0x101e3ddeu)
 
 enum { WIDTH = 720, HEIGHT = 480, CENTER_X = WIDTH / 2, CENTER_Y = HEIGHT / 2,
-       CROSS_EXTENT = 100, CROSS_LENGTH = 40, CROSS_WIDTH = 4, WING_GAP = CROSS_EXTENT + 4,
-       PITCH_START = 16, PITCH_END = 42 };
+       Q12 = 4096, ROLL_HALF_LENGTH = 4156, PITCH_INNER = 18, PITCH_OUTER = 44,
+       MASK_LEFT = 300, MASK_TOP = 180, MASK_RIGHT = 420, MASK_BOTTOM = 300,
+       PITCH_MAX_DEGREES = 30, PITCH_MAX_OFFSET = 58 };
 
-/* Private RGBA values with an alpha value distinct from the native indicators. */
-static const uint32_t outline_ink = 0xf9000000u;
-static const uint32_t white_ink = 0xf9ffffffu;
-static const uint32_t level_ink = 0xf924ff43u;
+/* Z8 C 3.12 shooting palette entries 1, 3, 40, 50 and 56. One unit in
+   an alpha or color channel identifies the pixels owned by this overlay. */
+static const uint32_t shadow_ink = 0x1a000001u;
+static const uint32_t guide_ink = 0x66000001u;
+static const uint32_t reference_ink = 0x992b2b2au;
+static const uint32_t level_ink = 0xfe00ff00u;
+static const uint32_t white_ink = 0xfeffffffu;
+
+struct Point {
+    int x;
+    int y;
+};
 
 static uint32_t *canvas(void)
 {
@@ -70,163 +55,175 @@ static uint32_t *canvas(void)
     return (uintptr_t)pixels & 3 ? 0 : pixels;
 }
 
-static int screen_y(int y)
+static int magnitude(int value)
 {
-    return y < 0 ? 0 : y > HEIGHT ? HEIGHT : y;
+    return value < 0 ? -value : value;
 }
 
-static void erase_span(uint32_t *row, int first, int last)
+static int erase_level(uint32_t *pixels)
 {
-    for (int x = first; x < last; ++x) {
-        uint32_t color = row[x];
-        if (color == outline_ink || color == white_ink || color == level_ink)
-            row[x] = 0;
-    }
-}
-
-static void erase_level(uint32_t *pixels)
-{
-    /* With full rotation, any row can contain an old wing. */
-    erase_span(pixels, 0, WIDTH * HEIGHT);
-}
-
-static void mark_rect(uint32_t *pixels, int x, int y, int width, int height, uint32_t color)
-{
-    int end = screen_y(y + height);
-    for (int row = screen_y(y); row < end; ++row) {
-        uint32_t *p = pixels + row * WIDTH + x;
-        for (int i = 0; i < width; i++) {
-            if (!(p[i] >> 24))
-                p[i] = color;
+    /* The previous overlay on this canvas supplies the visibility latch. */
+    int was_visible = 0;
+    for (int i = 0; i < WIDTH * HEIGHT; ++i) {
+        uint32_t color = pixels[i];
+        if (color == shadow_ink || color == guide_ink || color == reference_ink ||
+            color == level_ink || color == white_ink) {
+            pixels[i] = 0;
+            was_visible = 1;
         }
     }
+    return was_visible;
 }
 
-static void outlined_rect(uint32_t *pixels, int x, int y, int w, int h)
+static void mark_pixel(uint32_t *pixels, unsigned x, unsigned y, uint32_t color)
 {
-    mark_rect(pixels, x, y, w, 1, outline_ink);
-    mark_rect(pixels, x, y + h - 1, w, 1, outline_ink);
-    mark_rect(pixels, x, y + 1, 1, h - 2, outline_ink);
-    mark_rect(pixels, x + w - 1, y + 1, 1, h - 2, outline_ink);
-    mark_rect(pixels, x + 1, y + 1, w - 2, h - 2, white_ink);
+    if (x < WIDTH && y < HEIGHT) {
+        uint32_t *pixel = pixels + y * WIDTH + x;
+        if (!(*pixel >> 24))
+            *pixel = color;
+    }
 }
 
 static void draw_reference(uint32_t *pixels)
 {
-    /* Scale the four separate strokes in the reference to the LCD canvas. */
-    int gap = CROSS_EXTENT - CROSS_LENGTH;
-    outlined_rect(pixels, CENTER_X - CROSS_EXTENT, CENTER_Y - CROSS_WIDTH / 2,
-                  CROSS_LENGTH, CROSS_WIDTH);
-    outlined_rect(pixels, CENTER_X + gap, CENTER_Y - CROSS_WIDTH / 2,
-                  CROSS_LENGTH, CROSS_WIDTH);
-    outlined_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y - CROSS_EXTENT,
-                  CROSS_WIDTH, CROSS_LENGTH);
-    outlined_rect(pixels, CENTER_X - CROSS_WIDTH / 2, CENTER_Y + gap,
-                  CROSS_WIDTH, CROSS_LENGTH);
+    /* Subtract the native 120x120 clear rectangle from the two fixed strokes. */
+    for (unsigned y = 239; y < 241; ++y) {
+        for (unsigned x = 258; x < MASK_LEFT; ++x)
+            mark_pixel(pixels, x, y, reference_ink);
+        for (unsigned x = MASK_RIGHT; x < 462; ++x)
+            mark_pixel(pixels, x, y, reference_ink);
+    }
+    for (unsigned x = 359; x < 361; ++x) {
+        for (unsigned y = 138; y < MASK_TOP; ++y)
+            mark_pixel(pixels, x, y, reference_ink);
+        for (unsigned y = MASK_BOTTOM; y < 342; ++y)
+            mark_pixel(pixels, x, y, reference_ink);
+    }
 }
 
-enum { TRIG_UNIT = 4096, STROKE_HALF_WIDTH = 5 * TRIG_UNIT / 2,
-       FILL_HALF_WIDTH = STROKE_HALF_WIDTH - TRIG_UNIT };
-
-/* Positive quadrant sine, interpolated in the native Q16-degree domain. */
-static int quarter_sine(int32_t angle)
+static int rounded_degrees(int32_t angle)
 {
-    static const uint16_t sine[] = {
-        0, 357, 711, 1060, 1401, 1731, 2048, 2349, 2633, 2896,
-        3138, 3355, 3547, 3712, 3849, 3956, 4034, 4080, 4096,
-    };
-    int step = 5 * Q16;
-    int index = angle / step;
-    if (index == 18)
-        return TRIG_UNIT;
-    return sine[index] + (sine[index + 1] - sine[index]) * (angle % step) / step;
+    int result = ((angle + Q16 / 2) >> 16) % 360;
+    return result < 0 ? result + 360 : result;
 }
 
-static int32_t corrected_pitch(int32_t first, int32_t second, int cos_roll, int sin_roll)
+static int32_t selected_pitch(const int32_t angles[3], unsigned direction)
 {
-    /* The producer computes the two pitch angles against the two in-plane
-       gravity components. Reconstruct the angle against their resultant. */
-    int use_first = cos_roll >= sin_roll;
-    int32_t raw = use_first ? first : second;
-    int projection = use_first ? cos_roll : sin_roll;
-    if (raw < 0 || raw > 360 * Q16)
+    int32_t raw = angles[direction == 0 || direction == 3 ? 1 : 2];
+    /* The upstream Z8 filter excludes two closed Q16 intervals. */
+    if (raw < 0 || raw > 360 * Q16 ||
+        (raw >= 60 * Q16 + Q16 / 2 && raw <= 119 * Q16 + Q16 / 2) ||
+        (raw >= 240 * Q16 + Q16 / 2 && raw <= 299 * Q16 + Q16 / 2))
         return -1;
-    int32_t angle = pitch_angle(raw);
-    int32_t absolute = magnitude(angle);
-    int across = quarter_sine(absolute) * projection / TRIG_UNIT;
-    int along = quarter_sine(90 * Q16 - absolute);
-    int32_t pitch = ATAN2_Q16(along, across);
-    return angle < 0 ? -pitch : pitch;
+    return raw;
 }
 
-static void draw_wings(uint32_t *pixels, int cosine, int sine, uint32_t color)
+static int distance_from_axis(int angle, int cycle)
 {
-    int horizontal = magnitude(cosine) >= magnitude(sine);
-    int major = horizontal ? cosine : sine;
-    int minor = horizontal ? sine : cosine;
-    int extent = horizontal ? CENTER_X : CENTER_Y;
-    int inner = WING_GAP * TRIG_UNIT;
-    int reach = (STROKE_HALF_WIDTH + magnitude(major) - 1) / magnitude(major);
-    for (int axis = -extent; axis < extent; ++axis) {
-        int center = axis * minor / major;
-        for (int cross = center - reach; cross <= center + reach; ++cross) {
-            int x = horizontal ? axis : cross;
-            int y = horizontal ? cross : axis;
-            int normal = magnitude(x * sine - y * cosine);
-            int tangent = magnitude(x * cosine + y * sine);
-            if (normal > STROKE_HALF_WIDTH || tangent < inner)
+    int remainder = angle % cycle;
+    return remainder <= cycle / 2 ? remainder : cycle - remainder;
+}
+
+static int pitch_offset(int pitch)
+{
+    int folded = distance_from_axis(pitch, 180);
+    if (folded > PITCH_MAX_DEGREES)
+        folded = PITCH_MAX_DEGREES;
+    int pixels = folded * PITCH_MAX_OFFSET / PITCH_MAX_DEGREES;
+    return pitch < 180 ? pixels : -pixels;
+}
+
+/* Truncated Q12 sine at integer degrees, generated from the sine function. */
+static int sine_q12(unsigned degrees)
+{
+    static const uint16_t quarter[] = {
+        0, 71, 142, 214, 285, 356, 428, 499, 570, 640,
+        711, 781, 851, 921, 990, 1060, 1129, 1197, 1265, 1333,
+        1400, 1467, 1534, 1600, 1665, 1731, 1795, 1859, 1922, 1985,
+        2048, 2109, 2170, 2230, 2290, 2349, 2407, 2465, 2521, 2577,
+        2632, 2687, 2740, 2793, 2845, 2896, 2946, 2995, 3043, 3091,
+        3137, 3183, 3227, 3271, 3313, 3355, 3395, 3435, 3473, 3510,
+        3547, 3582, 3616, 3649, 3681, 3712, 3741, 3770, 3797, 3823,
+        3848, 3872, 3895, 3917, 3937, 3956, 3974, 3991, 4006, 4020,
+        4033, 4045, 4056, 4065, 4073, 4080, 4086, 4090, 4093, 4095,
+        4096,
+    };
+    unsigned index = degrees % 90;
+    unsigned quadrant = degrees / 90;
+    int value = quarter[quadrant & 1 ? 90 - index : index];
+    return quadrant >= 2 ? -value : value;
+}
+
+static struct Point rotate_point(int x, int shift, int cosine, int sine)
+{
+    int bias = shift ? Q12 / 2 : 0;
+    return (struct Point){CENTER_X + ((x * cosine - shift * sine + bias) >> 12),
+                          CENTER_Y + ((x * sine + shift * cosine + bias) >> 12)};
+}
+
+static void draw_line(uint32_t *pixels, struct Point p, struct Point q, int width,
+                      uint32_t color, int mask_center)
+{
+    int dx = q.x - p.x, dy = q.y - p.y;
+    int horizontal = magnitude(dx) >= magnitude(dy);
+    int major = horizontal ? dx : dy;
+    int minor = horizontal ? dy : dx;
+    int a = horizontal ? p.x : p.y;
+    int b = horizontal ? p.y : p.x;
+    int first = major > 0 ? a : a + major;
+    int last = major > 0 ? a + major : a;
+    int extent = horizontal ? WIDTH : HEIGHT;
+    if (first < 0)
+        first = 0;
+    if (last >= extent)
+        last = extent - 1;
+
+    int length_squared = dx * dx + dy * dy;
+    int64_t stroke_squared = (int64_t)width * width * length_squared;
+    for (int axis = first; axis <= last; ++axis) {
+        int center = b + (axis - a) * minor / major;
+        for (int offset = -width; offset <= width; ++offset) {
+            int x = horizontal ? axis : center + offset;
+            int y = horizontal ? center + offset : axis;
+            if (mask_center && x >= MASK_LEFT && x < MASK_RIGHT && y >= MASK_TOP && y < MASK_BOTTOM)
                 continue;
-            int border = normal > FILL_HALF_WIDTH || tangent < inner + TRIG_UNIT;
-            mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, border ? outline_ink : color);
+            int rel_x = 2 * (x - p.x) + 1, rel_y = 2 * (y - p.y) + 1;
+            int along = rel_x * dx + rel_y * dy;
+            int normal = rel_x * dy - rel_y * dx;
+            if (along >= 0 && along <= 2 * length_squared &&
+                (int64_t)normal * normal <= stroke_squared)
+                mark_pixel(pixels, x, y, color);
         }
     }
 }
 
-static void draw_pitch(uint32_t *pixels, int cosine, int sine, int displacement, uint32_t color)
+static void draw_pitch(uint32_t *pixels, int shift, int extension, int cosine, int sine,
+                       int width, uint32_t color)
 {
-    /* Project each pixel onto the horizon tangent and the upward normal. */
-    int radius = PITCH_END + 2 + magnitude(displacement);
-    int start = PITCH_START * TRIG_UNIT - TRIG_UNIT / 2;
-    int end = PITCH_END * TRIG_UNIT + TRIG_UNIT / 2;
-    for (int y = -radius; y <= radius; ++y) {
-        for (int x = -radius; x <= radius; ++x) {
-            int normal = magnitude(x * sine - y * cosine - displacement * TRIG_UNIT);
-            if (normal > STROKE_HALF_WIDTH)
-                continue;
-            int tangent = magnitude(x * cosine + y * sine);
-            if (tangent < start || tangent > end)
-                continue;
-            int border = normal > FILL_HALF_WIDTH ||
-                         tangent < start + TRIG_UNIT || tangent > end - TRIG_UNIT;
-            mark_rect(pixels, CENTER_X + x, CENTER_Y + y, 1, 1, border ? outline_ink : color);
-        }
-    }
+    int inner = PITCH_INNER + extension, outer = PITCH_OUTER + extension;
+    draw_line(pixels, rotate_point(outer, shift, cosine, sine),
+              rotate_point(inner, shift, cosine, sine), width, color, 0);
+    draw_line(pixels, rotate_point(-outer, shift, cosine, sine),
+              rotate_point(-inner, shift, cosine, sine), width, color, 0);
 }
 
-static void draw_level(uint32_t *pixels, int32_t roll, int32_t first, int32_t second)
+static void draw_level(uint32_t *pixels, int roll, int pitch)
 {
-    roll %= 360 * Q16;
-    if (roll > 180 * Q16)
-        roll -= 360 * Q16;
-    if (roll < -180 * Q16)
-        roll += 360 * Q16;
-    int32_t absolute = magnitude(roll);
-    int32_t quadrant_angle = absolute > 90 * Q16 ? 180 * Q16 - absolute : absolute;
-    int sine = quarter_sine(quadrant_angle);
-    int cosine = quarter_sine(90 * Q16 - quadrant_angle);
-    int32_t pitch = corrected_pitch(first, second, cosine, sine);
-    if (pitch == -1)
-        return;
+    int sine = sine_q12(roll);
+    int cosine = sine_q12((roll + 90) % 360);
+    int shift = pitch_offset(pitch);
+    uint32_t roll_color = roll % 90 == 0 ? level_ink : white_ink;
+    uint32_t pitch_color = pitch % 90 == 0 ? level_ink : white_ink;
+    struct Point start = rotate_point(-ROLL_HALF_LENGTH, 0, cosine, sine);
+    struct Point end = rotate_point(ROLL_HALF_LENGTH, 0, cosine, sine);
 
+    /* Paint the foreground first; the existing camera HUD always has priority. */
+    draw_pitch(pixels, shift, 0, cosine, sine, 2, pitch_color);
+    draw_pitch(pixels, shift, 1, cosine, sine, 4, shadow_ink);
+    draw_pitch(pixels, 0, 0, cosine, sine, 2, guide_ink);
+    draw_line(pixels, start, end, 2, roll_color, 1);
+    draw_line(pixels, start, end, 4, shadow_ink, 1);
     draw_reference(pixels);
-    int32_t from_axis = quadrant_angle % (90 * Q16);
-    uint32_t roll_color = from_axis <= Q16 / 2 || from_axis >= 90 * Q16 - Q16 / 2
-        ? level_ink : white_ink;
-    uint32_t pitch_color = magnitude(pitch) <= Q16 / 2 ? level_ink : white_ink;
-    sine = roll < 0 ? -sine : sine;
-    cosine = absolute > 90 * Q16 ? -cosine : cosine;
-    draw_wings(pixels, cosine, sine, roll_color);
-    draw_pitch(pixels, cosine, sine, marker(pitch), pitch_color);
 }
 
 __attribute__((section(".text.clear")))
@@ -252,15 +249,19 @@ int paint_horizon(uint32_t widget)
 
     int32_t angles[3];
     READ_POSE(angles);
+    int32_t pitch = selected_pitch(angles, READ_DIRECTION());
     int32_t roll = angles[0];
     int roll_valid = roll >= -360 * Q16 && roll <= 360 * Q16 && roll != -1;
     SYNC();
     uint32_t *pixels = canvas();
     if (!pixels)
         return 0;
-    erase_level(pixels);
-    if (roll_valid)
-        draw_level(pixels, roll, angles[1], angles[2]);
+    int was_visible = erase_level(pixels);
+    if (roll_valid && pitch >= 0) {
+        int folded = distance_from_axis(pitch, 180 * Q16);
+        if (folded < 55 * Q16 || (was_visible && folded <= 60 * Q16))
+            draw_level(pixels, rounded_degrees(roll), rounded_degrees(pitch));
+    }
     PUBLISH(0);
     DIRTY(widget, 0);
     return 1;

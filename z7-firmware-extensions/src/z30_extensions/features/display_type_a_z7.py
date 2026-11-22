@@ -191,11 +191,14 @@ def _horizon(plan, clang, lld):
             {tail(address + len(expected))}
         """)
     _horizon_page(plan)
-    plan.features["horizon"] = dict(style="Type A-inspired central axes", output="shooting LCD 720x480",
+    plan.features["horizon"] = dict(style="Z8 C 3.12 Type A", output="shooting LCD 720x480",
                                     paint=hex(entries[0]), clear=hex(entries[1]),
                                     display_states=[3, 5], roll_degrees=360, cycle=[0, 1, 2, 3, 5, 4],
-                                    pitch_stroke_length=27, roll_pitch_width=5, outline_pixels=1,
-                                    pitch_displacement_ratio=[2, 3])
+                                    reference_rectangles=[[258, 239, 462, 241], [359, 138, 361, 342]],
+                                    center_clear_rectangle=[300, 180, 420, 300],
+                                    centered_pitch_endpoints=[[-44, -18], [18, 44]],
+                                    roll_half_length=4156, stroke_widths=[2, 4],
+                                    pitch_max_shift=[30, 58], pitch_visibility_limits=[55, 60])
     _battery(plan, battery)
 
 
