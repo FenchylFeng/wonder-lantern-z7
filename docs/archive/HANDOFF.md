@@ -1231,7 +1231,7 @@ match the accepted emulator baseline; 13 candidate admission/corruption checks;
 5 launcher tests; 11 Python RAW/input tests; 270 renderer and 398 ISP contracts;
 firmware-free QMP/TCP realization; 21 general UI checks; 17 sound-menu checks
 each for full and sound-only. ASan/UBSan were not run on this Windows host.
-See [the sanitized native results](../../evidence/20261021-windows-validation.json).
+See [the sanitized native results](https://github.com/FenchylFeng/wonder-lantern-z7/blob/f779db41c4d4b5e6d6e2bd88a9fd4c7a0fd78b95/evidence/20261021-windows-validation.json).
 
 Cold assisted boot took about 140 seconds. The old fixed 12-second menu-return
 verification window expired on this host despite subsequent scene recovery.

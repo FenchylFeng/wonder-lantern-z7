@@ -46,7 +46,7 @@ Validation of the V4 patcher on native Windows is pending. The repository's
 
 ## Documentation
 
-- [V4 battery and Type A changes](docs/DISPLAY_V4.md)
+- [V4 battery and Type A changes](docs/DISPLAY_V4.md) · [QEMU screenshots and validation](docs/DISPLAY_V4.md#verification)
 - [V3 build and validation notes](DISPLAY_TYPE_A.md)
 - [Upstream research archive](docs/archive/README.md) for earlier grids, emulator setup, and other lab experiments
 

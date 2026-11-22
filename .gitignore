@@ -22,6 +22,9 @@ __pycache__/
 *.wav
 *.WAV
 *.png
+!/evidence/qemu-type-a-histogram.png
+!/evidence/qemu-type-a-portrait.png
+!/evidence/qemu-battery-100.png
 *.jpg
 *.jpeg
 *.ppm

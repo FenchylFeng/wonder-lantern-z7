@@ -93,7 +93,7 @@ successful isolated retry used the normal host socket permissions. Neither
 attempt accessed a camera. These checks cannot prove physical sound.
 
 Sanitized results are in
-[`evidence/20261021-audio-playback-fix.json`](../../evidence/20261021-audio-playback-fix.json).
+[`evidence/20261021-audio-playback-fix.json`](https://github.com/FenchylFeng/wonder-lantern-z7/blob/f779db41c4d4b5e6d6e2bd88a9fd4c7a0fd78b95/evidence/20261021-audio-playback-fix.json).
 
 The corrected candidate was staged as E:\EG161080.BIN on the verified Sony
 QD-G240F card at 2026-10-22 03:08 UTC, with complete SHA-256 readback matching

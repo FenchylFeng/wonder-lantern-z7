@@ -1,6 +1,6 @@
 # Upstream research archive
 
-[Current V3 README](../../README.md)
+[Current README](../../README.md)
 
 The sections below describe earlier upstream builds and research. Run the
 historical setup commands from the repository root.
@@ -27,7 +27,7 @@ other bodies/versions, including Z7 II, are not supported by this preview.
 The exact image passed 107 instruction checks, 16 assisted QEMU checks and 12
 selected updater probes. Test boundaries and remaining gaps are documented in
 [NATIVE_GRID_SETTINGS.md](NATIVE_GRID_SETTINGS.md). Owner hardware results are
-recorded separately in `evidence/20261026-grid-saved-owner-hardware.json`.
+recorded separately in the [owner hardware report](https://github.com/FenchylFeng/wonder-lantern-z7/blob/f779db41c4d4b5e6d6e2bd88a9fd4c7a0fd78b95/evidence/20261026-grid-saved-owner-hardware.json).
 Off intentionally clears the selected type; presets/import/export, indirect
 consumers, wake behavior, extended use and failure recovery need further review.
 
@@ -82,7 +82,7 @@ capture timing, recording, recovery or compatibility with other camera models.
 - [SPLASH_SCREEN_FEASIBILITY.md](SPLASH_SCREEN_FEASIBILITY.md): private stock resource findings and the proposed startup image approach.
 - [LAB_REPORT.md](LAB_REPORT.md): complete lab history.
 - [UPSTREAMS.json](../../UPSTREAMS.json): original repository and commit provenance.
-- `evidence/`: source-only validation summary; no firmware or camera screenshots.
+- [Historical validation records](https://github.com/FenchylFeng/wonder-lantern-z7/tree/f779db41c4d4b5e6d6e2bd88a9fd4c7a0fd78b95/evidence)
 
 The two component directories are vendored source snapshots, **not submodules**.
 Their upstream licenses and notices remain in place. This repository is a modified

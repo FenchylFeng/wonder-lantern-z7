@@ -28,6 +28,8 @@ python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .pr
 
 构建器先校验官方输入的 SHA-256，再在新的本地目录生成含 CRC 的完整 EG、用于 QEMU 的 MAIN 和构建清单。 [第 4 版构建和验证说明](docs/DISPLAY_V4.md)
 
+第 4 版已在 QEMU 验证照片模式后屏。 [验证摘要与 QEMU 截图](docs/DISPLAY_V4.md#verification)
+
 ### 原生 Windows 构建 · 暂未完成
 
 第 4 版构建器的原生 Windows 验证尚未完成。仓库中的 `Setup-Z7.ps1` 和 `Start-Z7.cmd` 属于上游工作流。 [上游 Windows 模拟器说明](docs/archive/WINDOWS_BUILD.md)

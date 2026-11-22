@@ -1,0 +1,55 @@
+{
+  "camera": "Nikon Z7 C 3.80",
+  "scope": "Photo mode on the rear monitor with synthetic preview, pose, luminance and battery data.",
+  "camera_hardware_verified": false,
+  "build": {
+    "official_input_sha256": "7f59d8993080203a12692cf6927a0a8218786d3f72230c04174f1563c506a6f6",
+    "main_sha256": "0ffa1348a6b6dfcb995bc056f50612bb029d9bd71ce1d7593fa0cd6267af3761",
+    "eg_sha256": "b4c5d8ce38cbda332aa0fa24bfdc5e833ee17bcb2f7fe56be4895d8386e2c006",
+    "eg_crc_residue": 0
+  },
+  "type_a": {
+    "reference": "Nikon Z8 C 3.12, 720×480 monitor",
+    "stock_z8_aarch64_checks": 36,
+    "z7_arm_checks_passed": 416,
+    "stock_z8_comparisons_passed": 399,
+    "z7_qemu_checks_passed": 26,
+    "qemu_icount_shift": 0
+  },
+  "histogram": {
+    "qemu_checks_passed": 11,
+    "stock_vs_v4_comparisons": {
+      "disp-2-asymmetric": 0,
+      "disp-3-asymmetric": 0,
+      "disp-2-spread": 0,
+      "disp-3-spread": 0,
+      "disp-2-clipped": 0,
+      "disp-3-clipped": 0
+    },
+    "different_histogram_pixels_at_roll": {
+      "disp-3-roll-22": 0,
+      "disp-3-roll-18": 0,
+      "disp-3-roll-198": 0
+    }
+  },
+  "battery": {
+    "tested_readout": "100%",
+    "digit_one_pixel_mismatches": 0,
+    "same_frame_on_v4": true,
+    "scope": "Synthetic sample during native icon submission."
+  },
+  "qemu_screenshots": {
+    "qemu-type-a-histogram.png": {
+      "description": "DISP 3 with the Type A horizon and the stock histogram.",
+      "sha256": "00c206cbd6af063f12ff10a9b57e10ca5a20035b486a592cfdfa4d2fa8396d6d"
+    },
+    "qemu-type-a-portrait.png": {
+      "description": "DISP 5 with the Type A horizon at 90 degrees of roll.",
+      "sha256": "eba559a2e16afcc2016a409d65a138e86ad5f15b85de5317c694a7a703600e6e"
+    },
+    "qemu-battery-100.png": {
+      "description": "A synthetic 100% BatteryCheckService reading at the native icon draw boundary.",
+      "sha256": "689798def33d66316549b08d9259f5c6cd5804d427e968a08b19f24a8613df90"
+    }
+  }
+}
