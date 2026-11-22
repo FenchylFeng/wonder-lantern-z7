@@ -309,7 +309,7 @@ static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
             "   .###.   ",
             "     .     ",
         },
-        { /* 1 */
+        { /* 1, with the short flag and no foot of the stock shooting readout. */
             "           ",
             "    +#+    ",
             "   +###    ",
@@ -326,9 +326,9 @@ static void draw_battery(uint32_t *pixels, int x, int y, unsigned percent)
             "    .##    ",
             "    .##    ",
             "    .##    ",
-            " .#######+ ",
-            " .#######+ ",
-            "  .......  ",
+            "    .##    ",
+            "    .##    ",
+            "    .++    ",
         },
         { /* 2 */
             "    ...    ",
