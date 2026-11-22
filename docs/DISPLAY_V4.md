@@ -12,7 +12,9 @@ The battery feature follows the approach documented in the Z5 project. The Z7 dr
 
 ## Verification
 
-Validation covers the LCD in photo mode. Isolated ARM execution compares the Z7 line coordinates with stock Z8 AArch64 widget outputs. Z7 QEMU runs the native monitor with synthetic pose, image and battery inputs. The six histogram comparisons against stock Z7 produced zero differing pixels in the histogram region. V4 camera hardware validation is pending. [Validation summary](../evidence/v4-validation.json) · [Nikon Z8 d17](https://onlinemanual.nikonimglib.com/z8/en/csmd_virtual_horizon_type_247.html)
+On 2026-11-23, the author reported successfully installing V4 on a Nikon Z7 and confirmed that it worked as expected.
+
+Emulator validation covers the LCD in photo mode. Isolated ARM execution compares the Z7 line coordinates with stock Z8 AArch64 widget outputs. Z7 QEMU runs the native monitor with synthetic pose, image and battery inputs. The six histogram comparisons against stock Z7 produced zero differing pixels in the histogram region. [Validation summary](../evidence/v4-validation.json) · [Nikon Z8 d17](https://onlinemanual.nikonimglib.com/z8/en/csmd_virtual_horizon_type_247.html)
 
 - [Type A horizon and histogram](../evidence/qemu-type-a-histogram.png)
 - [Type A horizon in portrait orientation](../evidence/qemu-type-a-portrait.png)

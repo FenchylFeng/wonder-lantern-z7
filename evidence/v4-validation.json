@@ -1,7 +1,12 @@
 {
   "camera": "Nikon Z7 C 3.80",
-  "scope": "Photo mode on the rear monitor with synthetic preview, pose, luminance and battery data.",
-  "camera_hardware_verified": false,
+  "scope": "Emulator checks cover photo mode on the rear monitor with synthetic preview, pose, luminance and battery data.",
+  "camera_hardware_verified": true,
+  "camera_hardware_report": {
+    "date": "2026-11-23",
+    "source": "Author report",
+    "result": "V4 installed successfully and worked as expected on one Nikon Z7."
+  },
   "build": {
     "official_input_sha256": "7f59d8993080203a12692cf6927a0a8218786d3f72230c04174f1563c506a6f6",
     "main_sha256": "0ffa1348a6b6dfcb995bc056f50612bb029d9bd71ce1d7593fa0cd6267af3761",

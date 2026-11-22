@@ -22,7 +22,7 @@ V4 includes the following monitor features.
 - **Battery percentage** appears in antialiased numerals inside the shooting
   monitor's battery icon. The icon uses red at 20% or below.
 
-The author reported hardware results for V3. [V3 build and validation notes](DISPLAY_TYPE_A.md)
+The author successfully installed V4 on a Nikon Z7 and confirmed that it worked as expected. [V4 verification notes](docs/DISPLAY_V4.md#verification)
 
 ### Build V4 on Linux or WSL
 
