@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+PRESETS = ('display-v4', 'stock', 'full', 'liveview-dual', 'shutter-sound', 'm900')
 
 
 def windows_to_wsl(path):
@@ -22,11 +23,13 @@ def command(args, host_os=None, executable=None):
     build = args.build_directory.resolve()
     wsl = host_os == 'nt' and not getattr(args, 'native', False)
     convert = (lambda path: windows_to_wsl(Path(path).resolve())) if wsl else (lambda path: str(Path(path).resolve()))
-    payload = 'stock-main.bin' if args.preset == 'stock' else args.preset + '.main.bin'
+    payload = {'display-v4': 'display.emulator.main.bin', 'stock': 'stock-main.bin'}.get(
+        args.preset, args.preset + '.main.bin')
     values = [convert(ROOT / 'z7-qemu/tools/interactive.py'), '--firmware', convert(build / payload),
               '--port', str(args.port)]
     if args.preset != 'stock':
-        values += ['--candidate-report', convert(build / (args.preset + '.json')),
+        report = 'display.json' if args.preset == 'display-v4' else args.preset + '.json'
+        values += ['--candidate-report', convert(build / report),
                    '--stock-container', convert(ROOT / '.private/stock/Z_7_0380.bin')]
     values += ['--profile', 'menu'] if args.menu_only else ['--photo-liveview']
     if host_os == 'nt' and not wsl:
@@ -45,7 +48,7 @@ if __name__ == '__main__':
     configuration = ROOT / '.private/lab-environment.json'
     local = json.loads(configuration.read_text(encoding='utf-8')) if configuration.exists() else {}
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--preset', choices=('stock', 'full', 'liveview-dual', 'shutter-sound', 'm900'), default='full')
+    parser.add_argument('--preset', choices=PRESETS, default=local.get('preset', 'full'))
     parser.add_argument('--port', type=int, default=8787)
     parser.add_argument('--build-directory', type=Path,
                         default=ROOT / local.get('build_directory', '.private/builds/20261020-09'))
@@ -60,4 +63,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(f'Starting {args.preset} research firmware at http://127.0.0.1:{args.port}/', flush=True)
     options = dict(creationflags=subprocess.CREATE_NO_WINDOW) if os.name == 'nt' else {}
+    if os.name == 'nt' and args.native and args.preset == 'display-v4' and local.get('llvm_bin'):
+        options['env'] = dict(os.environ, PATH=os.pathsep.join((local['llvm_bin'], os.environ.get('PATH', ''))))
     raise SystemExit(subprocess.call(command(args), **options))

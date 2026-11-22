@@ -8,7 +8,8 @@
     "result": "V4 installed successfully and worked as expected on one Nikon Z7."
   },
   "build": {
-    "official_input_sha256": "7f59d8993080203a12692cf6927a0a8218786d3f72230c04174f1563c506a6f6",
+    "official_input_sha256": "07cf19513ada5b770caec4cfc3531a6734c48aede28dcec037f0f8374ef441a2",
+    "stock_eg_sha256": "7f59d8993080203a12692cf6927a0a8218786d3f72230c04174f1563c506a6f6",
     "main_sha256": "0ffa1348a6b6dfcb995bc056f50612bb029d9bd71ce1d7593fa0cd6267af3761",
     "eg_sha256": "b4c5d8ce38cbda332aa0fa24bfdc5e833ee17bcb2f7fe56be4895d8386e2c006",
     "eg_crc_residue": 0

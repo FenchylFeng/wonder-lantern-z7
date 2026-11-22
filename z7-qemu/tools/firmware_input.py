@@ -23,19 +23,28 @@ def validate_firmware(path, report_path=None, stock_container=None):
     from z30_extensions.build import build, PRESETS
     from z30_extensions.container import extract_eg, Z7_CONTAINER_SHA256
     report = json.loads(Path(report_path).read_text(encoding='utf-8'))
-    if report.get('model') != 'Nikon Z7' or report.get('firmware') != 'C 3.80' or report.get('preset') not in PRESETS:
+    preset = report.get('preset')
+    display_v4 = preset == 'z7-inline-display-v4-emulator-only'
+    if report.get('model') != 'Nikon Z7' or report.get('firmware') != 'C 3.80' or not (preset in PRESETS or display_v4):
         raise ValueError('Unsupported candidate model, version or preset')
     container = Path(stock_container).read_bytes()
     if hashlib.sha256(container).hexdigest() != Z7_CONTAINER_SHA256:
         raise ValueError('Stock container fingerprint mismatch')
-    stock = extract_eg(container)
-    expected, expected_report = build(stock, report['preset'], model='z7')
+    if display_v4:
+        from z30_extensions.features.display_type_a_z7 import build as build_display
+        expected, expected_report = build_display(container)
+        reported_size = report.get('size')
+        if reported_size != len(expected) or report.get('profile') != expected_report['profile']:
+            raise ValueError('V4 candidate report fingerprint or size mismatch')
+    else:
+        expected, expected_report = build(extract_eg(container), preset, model='z7')
+        if report.get('main_payload_size') != len(payload):
+            raise ValueError('Candidate report size mismatch')
     if payload != expected[:-2] or binascii.crc_hqx(expected, 0):
         raise ValueError('Candidate differs from independently rebuilt patch; preserve the entire appended tail')
-    if (report.get('sha256') != expected_report['sha256'] or
-            report.get('main_payload_sha256') != sha or report.get('main_payload_size') != len(payload)):
-        raise ValueError('Candidate report fingerprint or size mismatch')
+    if report.get('sha256') != expected_report['sha256'] or report.get('main_payload_sha256') != sha:
+        raise ValueError('Candidate report fingerprint mismatch')
     return {'modified': True, 'sha256': sha, 'size': len(payload),
-            'preset': report['preset'], 'report': str(Path(report_path).resolve()),
+            'preset': preset, 'report': str(Path(report_path).resolve()),
             'stock_container_sha256': Z7_CONTAINER_SHA256,
             'independently_rebuilt': True, 'camera_verified': False}

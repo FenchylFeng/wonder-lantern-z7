@@ -1,6 +1,7 @@
 """Build the Z7 C 3.80 V4 photo-monitor experiment."""
 
 import hashlib
+from functools import partial
 from pathlib import Path
 import shutil
 import struct
@@ -22,8 +23,7 @@ HORIZON_SITES = (
 )
 
 
-def _append_renderer(plan, clang, lld):
-    address = plan.address
+def _compile_renderer(address, clang, lld):
     with tempfile.TemporaryDirectory(prefix="z7-type-a-") as directory:
         work = Path(directory)
         layout, obj, image = (work / name for name in ("horizon.ld", "horizon.o", "horizon.bin"))
@@ -41,7 +41,23 @@ SECTIONS {{
                         "-Wall", "-Wextra", "-Werror", "-c",
                         Path(__file__).with_suffix(".c"), "-o", obj], check=True)
         subprocess.run([lld, "-T", layout, "--oformat=binary", obj, "-o", image], check=True)
-        binary = image.read_bytes()
+        return image.read_bytes()
+
+
+def llvm_renderer(llvm_bin=None):
+    """Return a renderer builder that links at the address chosen by the patch plan."""
+    clang, lld = (shutil.which(name, path=str(llvm_bin) if llvm_bin is not None else None)
+                  for name in ("clang", "ld.lld"))
+    if not clang or not lld:
+        raise ValueError("Install Clang and LLD, or supply their bin directory")
+    return partial(_compile_renderer, clang=clang, lld=lld)
+
+
+def _append_renderer(plan, renderer_for_address):
+    address = plan.address
+    binary = renderer_for_address(address)
+    if len(binary) < 12:
+        raise ValueError("Incomplete monitor renderer")
     entries = struct.unpack_from("<3I", binary)
     if not all(address + 12 <= entry < address + len(binary) and entry % 4 == 0 for entry in entries):
         raise ValueError("Unexpected monitor renderer entry offsets")
@@ -173,8 +189,8 @@ def _horizon_page(plan):
     """)
 
 
-def _horizon(plan, clang, lld):
-    *entries, battery = _append_renderer(plan, clang, lld)
+def _horizon(plan, renderer_for_address):
+    *entries, battery = _append_renderer(plan, renderer_for_address)
     for (address, window, name), entry in zip(HORIZON_SITES, entries, strict=True):
         expected = bytes.fromhex(window)
         ops = _instructions(plan, address, expected)
@@ -217,13 +233,11 @@ def _battery(plan, renderer):
                                     glyph_size=[11, 19], glyph_coverage_levels=4)
 
 
-def build(container, llvm_bin=None):
+def build(container, llvm_bin=None, *, renderer_for_address=None):
     if hashlib.sha256(container).hexdigest() != Z7_CONTAINER_SHA256:
         raise ValueError("Requires the exact original Nikon Z7 C 3.80 update file")
-    clang, lld = (shutil.which(name, path=str(llvm_bin) if llvm_bin is not None else None)
-                  for name in ("clang", "ld.lld"))
-    if not clang or not lld:
-        raise ValueError("Install Clang and LLD, or supply their bin directory")
+    if renderer_for_address is None:
+        renderer_for_address = llvm_renderer(llvm_bin)
     stock = extract_eg(container)
     grid, _ = grid_z7.build(stock, native_choice=True, four_grids=True)
     if hashlib.sha256(grid[:-2]).hexdigest() != FOUR_GRID_MAIN_SHA256:
@@ -232,7 +246,7 @@ def build(container, llvm_bin=None):
     class DisplayPlan(Plan):
         def finish(self):
             _histogram(self)
-            _horizon(self, clang, lld)
+            _horizon(self, renderer_for_address)
             return super().finish()
 
     with patch.object(grid_z7, "Plan", DisplayPlan):

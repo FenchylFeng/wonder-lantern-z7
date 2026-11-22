@@ -42,6 +42,14 @@ class LauncherTests(unittest.TestCase):
         self.assertIn('--stock-container', result)
         self.assertEqual(result[-1], '--photo-liveview')
 
+    def test_display_v4_uses_main_and_matching_manifest(self):
+        args = self.args(preset='display-v4', native=True)
+        result = launch_z7.command(args, host_os='nt')
+        build = args.build_directory.resolve()
+        self.assertEqual(result[result.index('--firmware') + 1], str(build / 'display.emulator.main.bin'))
+        self.assertEqual(result[result.index('--candidate-report') + 1], str(build / 'display.json'))
+        self.assertIn('--stock-container', result)
+
     def test_wsl_interpreter_and_argument_boundaries(self):
         with patch.object(launch_z7, 'windows_to_wsl', side_effect=lambda path: '/mnt/c/Lab with spaces/' + path.name):
             direct = launch_z7.command(self.args(linux_python='/home/user/lab/bin/python'), host_os='nt')
