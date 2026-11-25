@@ -13,7 +13,7 @@ from ..assembly import assemble, constant, invoke, jump
 from ..container import Z7_CONTAINER_SHA256, extract_eg
 from ..plan import Plan
 from ..platform import z7_380
-from . import grid_z7, liveview_dual
+from . import af_on_af_c_z7, grid_z7, iso_double_click_z7, liveview_dual
 from .grid_z7 import tail
 
 FOUR_GRID_MAIN_SHA256 = "574932a48ee213989b8ef57e63b38df2d208ab5d7a40624bbc4fde90dda22498"
@@ -233,7 +233,7 @@ def _battery(plan, renderer):
                                     glyph_size=[11, 19], glyph_coverage_levels=4)
 
 
-def build(container, llvm_bin=None, *, renderer_for_address=None):
+def build(container, llvm_bin=None, *, renderer_for_address=None, iso_double_click=False, af_on_af_c=False):
     if hashlib.sha256(container).hexdigest() != Z7_CONTAINER_SHA256:
         raise ValueError("Requires the exact original Nikon Z7 C 3.80 update file")
     if renderer_for_address is None:
@@ -247,6 +247,8 @@ def build(container, llvm_bin=None, *, renderer_for_address=None):
         def finish(self):
             _histogram(self)
             _horizon(self, renderer_for_address)
+            if iso_double_click or af_on_af_c:
+                iso_double_click_z7.install(self, af_on=af_on_af_c)
             return super().finish()
 
     with patch.object(grid_z7, "Plan", DisplayPlan):
@@ -254,6 +256,10 @@ def build(container, llvm_bin=None, *, renderer_for_address=None):
     heap = grid_z7.HEAP_SITE - z7_380.BASE
     if eg[heap:heap + len(grid_z7.HEAP_EXPECTED)] != grid_z7.HEAP_EXPECTED:
         raise ValueError("Native heap initialization changed")
-    report.update(preset="z7-inline-display-v4-emulator-only", profile="display-v4",
+    preset = iso_double_click_z7.PRESET if iso_double_click else "z7-inline-display-v4-emulator-only"
+    profile = iso_double_click_z7.PROFILE if iso_double_click else "display-v4"
+    if af_on_af_c:
+        preset, profile = af_on_af_c_z7.PRESET, af_on_af_c_z7.PROFILE
+    report.update(preset=preset, profile=profile,
                   main_payload_sha256=hashlib.sha256(eg[:-2]).hexdigest())
     return eg, report

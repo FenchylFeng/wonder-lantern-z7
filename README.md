@@ -57,6 +57,10 @@ python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin --output .pr
 
 第 4 版已在 QEMU 验证照片模式后屏。 [验证摘要与 QEMU 截图](docs/DISPLAY_V4.md#verification)
 
+在构建命令中加上 `--iso-double-click`，并指定新的输出目录，可生成带机身 ISO 键双击快捷键的 V4 实验版。在「自定义设定菜单 → f 控制 → f8 连按ISO按钮切换ISO AUTO」开启后，双击机身 ISO 键切换自动 ISO。首次使用默认关闭，相机正常重启后恢复上次确认的选择。快捷键用于照片 P、S、A、M 档和视频 M 档。 [使用与验证](docs/DISPLAY_V4.md#iso-button-double-click)
+
+用 `--af-on-af-c` 构建同时含 f8 和「f9 AF-ON对焦使用AF-C」的版本。f9 首次使用默认关闭，并通过原厂设置保存确认后的选择。开启时，按下机身 AF-ON 立即从 AF-S 切到 AF-C，松开后恢复 AF-S。修正机身 AF-ON 映射后的合并版已通过实机验证。 [使用与验证](docs/DISPLAY_V4.md#af-on-focus-mode)
+
 ### 在原生 Windows 构建第 4 版
 
 在 64 位 Windows 上使用 PowerShell。下载原版固件 `Z_7_0380.bin`，然后在仓库目录执行下列命令。 [尼康官网下载](https://downloadcenter.nikonimglib.com/zh-cn/download/fw/558.html)

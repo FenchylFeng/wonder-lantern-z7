@@ -44,3 +44,74 @@ Emulator validation covers the LCD in photo mode. Isolated ARM execution compare
 - [Type A horizon and histogram](../evidence/qemu-type-a-histogram.png)
 - [Type A horizon in portrait orientation](../evidence/qemu-type-a-portrait.png)
 - [100% battery reading](../evidence/qemu-battery-100.png)
+
+## ISO button double-click
+
+In **Custom Settings Menu → f Controls → f8 ISO button double-click**, choose
+**On** and press **OK** to enable the shortcut. The first-use default is **Off**.
+The camera saves each confirmed choice through its native settings worker and
+restores it on the next startup. In the shooting view, two short taps on the
+body ISO button then toggle Auto ISO. Each press must be released within
+250 ms, with no more than 350 ms between releases. The shortcut uses the
+photo setting in P, S, A, and M and the separate movie setting in M. Turning
+either command dial cancels a pending double-click. [Nikon ISO button](https://onlinemanual.nikonimglib.com/z7_z6/en/06_shooting_controls_02.html) · [Nikon Controls menu](https://onlinemanual.nikonimglib.com/z7_z6/en/09_menu_guide_05.html)
+
+```sh
+python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin \
+  --iso-double-click --output .private/build/display-v4-iso
+```
+
+The source build generates a separate EG, MAIN and manifest. The QEMU
+validator independently rebuilds this profile from the original Nikon update.
+The list uses Nikon's purple f8 number bitmap and its translated On and Off
+rows. The Simplified Chinese title is `连按ISO按钮切换ISO AUTO`.
+
+The added MAIN code observes native switch reports in the shooting task at
+`0x1012C5AC`. The body ISO button is bank 1 bit 29. A completed gesture calls
+the same settings service as the On and Off rows of the original shooting
+menus for properties `0x508` and `0xB07`. Boot initializes the four gesture
+words in volatile RAM at `0xA29F8FD0`. The switch uses an alignment halfword
+inside native journal record 55. Only the exact On marker enables the gesture.
+The original 89-record schema, startup loader and writer handle storage.
+
+```sh
+python tools/audit_iso_double_click_storage.py --source /path/to/Z_7_0380.bin \
+  --build .private/build/display-v4-iso --output .private/iso-storage.json
+```
+
+The storage audit executes the native worker, journal and startup on ARM
+with supplied OS and in-memory flash boundaries. It verifies first-use Off,
+both choices across fresh RAM, the original loader's ability to read the
+saved journal, and preservation of the last committed choice on a supplied
+program failure. Assisted QEMU exercises the menu and the shortcut with
+native flash writes disabled in the test fixture. The Z7 QEMU board lacks the
+flash command used by the save worker. The body ISO shortcut was also
+confirmed on a physical Nikon Z7.
+
+## AF-ON focus mode
+
+The combined build includes the f8 ISO switch and **f9 Use AF-C with AF-ON**
+under **Custom Settings Menu → f Controls**. The Simplified Chinese title is
+`AF-ON对焦使用AF-C`. f9 defaults to Off on first use. Confirming a choice
+requests a save through the native settings worker.
+
+With the setting On and focus mode set to AF-S, the camera applies AF-C
+on the AF-ON press edge and restores AF-S on release. The interval is the
+time the button is held. AF-C and manual focus stay as selected if already
+active at the time of the press. [Nikon AF-ON control](https://onlinemanual.nikonimglib.com/z7_z6/en-nsg/02_getting_to_know_the_camera_02.html)
+
+```sh
+python tools/build_display_type_a.py --source /path/to/Z_7_0380.bin \
+  --af-on-af-c --output .private/build/display-v4-af-on
+```
+
+f9 uses an aligned halfword at `0xA24F2DCE` in native journal record 55.
+The storage audit checks both shortcuts in the combined build. The original
+photo and movie AF-ON assignments both bind the body switch to bank zero,
+bit 21. The stock queue forwards this switch to the shortcut. In assisted
+QEMU, the photo AF task read AF-C after the press-edge write.
+
+The corrected combined build passed the user's physical Nikon Z7 C 3.80
+check after the AF-ON input mapping was fixed. This report applies to the
+combined EG with SHA-256
+`322cb50592600b7bee206233d598d48d6c81385fc82e079cac95eae30c06bc71`.

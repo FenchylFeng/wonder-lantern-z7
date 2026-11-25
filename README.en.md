@@ -92,6 +92,17 @@ directory. [V4 build and verification notes](docs/DISPLAY_V4.md)
 
 QEMU verification covered the rear monitor in photo mode. [Verification summary and QEMU screenshots](docs/DISPLAY_V4.md#verification)
 
+Add `--iso-double-click` and choose a new output directory to build the V4
+shortcut experiment. Enable it in **Custom Settings Menu → f Controls → f8 ISO
+button double-click**. It defaults to Off on first use and restores the last
+confirmed choice after a normal restart. In photo modes P, S, A, and M and
+movie mode M, double-click the body ISO button to toggle Auto ISO. [Usage and verification](docs/DISPLAY_V4.md#iso-button-double-click)
+
+Use `--af-on-af-c` to build the f8 ISO shortcut together with **f9 Use AF-C
+with AF-ON**. The f9 switch defaults to Off and saves the confirmed choice.
+When enabled in AF-S, pressing AF-ON applies AF-C immediately and releasing it
+restores AF-S. The corrected combined build passed a physical Z7 check. [Usage and verification](docs/DISPLAY_V4.md#af-on-focus-mode)
+
 ### Build V4 on native Windows
 
 Use PowerShell on 64-bit Windows. Download the original `Z_7_0380.bin`, then

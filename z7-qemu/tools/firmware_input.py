@@ -22,9 +22,11 @@ def validate_firmware(path, report_path=None, stock_container=None):
         raise ValueError('Candidate mode requires --stock-container for independent rebuilding')
     from z30_extensions.build import build, PRESETS
     from z30_extensions.container import extract_eg, Z7_CONTAINER_SHA256
+    from z30_extensions.features.iso_double_click_z7 import PRESET as ISO_DOUBLE_CLICK_PRESET
+    from z30_extensions.features.af_on_af_c_z7 import PRESET as AF_ON_AF_C_PRESET
     report = json.loads(Path(report_path).read_text(encoding='utf-8'))
     preset = report.get('preset')
-    display_v4 = preset == 'z7-inline-display-v4-emulator-only'
+    display_v4 = preset in ('z7-inline-display-v4-emulator-only', ISO_DOUBLE_CLICK_PRESET, AF_ON_AF_C_PRESET)
     if report.get('model') != 'Nikon Z7' or report.get('firmware') != 'C 3.80' or not (preset in PRESETS or display_v4):
         raise ValueError('Unsupported candidate model, version or preset')
     container = Path(stock_container).read_bytes()
@@ -32,7 +34,8 @@ def validate_firmware(path, report_path=None, stock_container=None):
         raise ValueError('Stock container fingerprint mismatch')
     if display_v4:
         from z30_extensions.features.display_type_a_z7 import build as build_display
-        expected, expected_report = build_display(container)
+        expected, expected_report = build_display(container, iso_double_click=preset == ISO_DOUBLE_CLICK_PRESET,
+                                                  af_on_af_c=preset == AF_ON_AF_C_PRESET)
         reported_size = report.get('size')
         if reported_size != len(expected) or report.get('profile') != expected_report['profile']:
             raise ValueError('V4 candidate report fingerprint or size mismatch')

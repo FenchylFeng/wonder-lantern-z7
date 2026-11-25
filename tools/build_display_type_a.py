@@ -17,11 +17,16 @@ def main():
     parser.add_argument("--output", type=Path, required=True,
                         help="New directory for the private EG, MAIN and manifest")
     parser.add_argument("--llvm-bin", type=Path, help="Directory containing clang and ld.lld")
+    parser.add_argument("--iso-double-click", action="store_true",
+                        help="Add the body ISO shortcut with its saved f8 On/Off setting")
+    parser.add_argument("--af-on-af-c", action="store_true",
+                        help="Build the f8 ISO shortcut together with the f9 AF-ON shortcut")
     args = parser.parse_args()
     if args.output.exists():
         parser.error("--output must be a new directory")
     try:
-        eg, report = build(args.source.read_bytes(), args.llvm_bin)
+        eg, report = build(args.source.read_bytes(), args.llvm_bin,
+                           iso_double_click=args.iso_double_click, af_on_af_c=args.af_on_af_c)
     except (OSError, ValueError, CalledProcessError) as error:
         parser.error(str(error))
     args.output.mkdir(parents=True, exist_ok=False)
