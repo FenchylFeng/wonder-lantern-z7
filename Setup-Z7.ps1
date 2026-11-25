@@ -65,7 +65,7 @@ try {
     }
     if (-not $BuildDirectory) {
         $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
-        $BuildDirectory = if ($Legacy) { ".private/builds/$stamp" } else { ".private/builds/display-v4-$stamp" }
+        $BuildDirectory = if ($Legacy) { ".private/builds/$stamp" } else { ".private/builds/display-v1.5-$stamp" }
     }
     $BuildDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($BuildDirectory)
     if (Test-Path -LiteralPath $BuildDirectory) { throw 'Use a new BuildDirectory to preserve earlier candidates.' }
@@ -126,14 +126,14 @@ try {
                 throw "Missing $tool in '$LlvmBin'. Supply the LLVM bin directory with -LlvmBin."
             }
         }
-        Invoke-Checked $python @('tools/build_display_type_a.py','--source',$stock,'--llvm-bin',$LlvmBin,'--output',$BuildDirectory)
-        $reference = (Get-Content -LiteralPath evidence/v4-validation.json -Raw | ConvertFrom-Json).build
+        Invoke-Checked $python @('tools/build_display_type_a.py','--source',$stock,'--llvm-bin',$LlvmBin,'--output',$BuildDirectory,'--af-on-af-c')
+        $reference = Get-Content -LiteralPath evidence/v1.5-reference.json -Raw | ConvertFrom-Json
         $egHash = (Get-FileHash -LiteralPath (Join-Path $BuildDirectory 'display.emulator.eg.bin') -Algorithm SHA256).Hash.ToLowerInvariant()
         $mainHash = (Get-FileHash -LiteralPath (Join-Path $BuildDirectory 'display.emulator.main.bin') -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($egHash -ne $reference.eg_sha256 -or $mainHash -ne $reference.main_sha256) {
-            throw "V4 release hash mismatch. Expected EG $($reference.eg_sha256), got EG $egHash and MAIN $mainHash. Check the Clang/LLD version."
+            throw "V1.5 release hash mismatch. Expected EG $($reference.eg_sha256) and MAIN $($reference.main_sha256), got EG $egHash and MAIN $mainHash. Check the Clang/LLD version."
         }
-        Write-Host "Verified V4 EG SHA-256 $egHash"
+        Write-Host "Verified V1.5 EG SHA-256 $egHash and MAIN SHA-256 $mainHash"
     }
 
     $msys = Join-Path $toolchain 'msys64'

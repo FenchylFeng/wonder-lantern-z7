@@ -1,4 +1,4 @@
-"""Package the independent Z7 V4 patcher as a standalone Windows executable."""
+"""Package the independent Z7 V1.5 patcher as a standalone Windows executable."""
 
 import argparse
 import hashlib
@@ -17,23 +17,23 @@ from z30_extensions.features.display_type_a_z7 import build, llvm_renderer
 
 ROOT = Path(__file__).resolve().parents[1]
 PATCHER = ROOT / "z7-firmware-extensions"
-REFERENCE = ROOT / "evidence/v4-validation.json"
-NAME = "Z7_FirmwarePatch_V4"
+REFERENCE = ROOT / "evidence/v1.5-reference.json"
+NAME = "Z7_FirmwarePatch_V1.5"
 
 
 def prepare_renderer(work, source, llvm_bin):
     compile_at = llvm_renderer(llvm_bin)
-    asset = work / "v4-renderer.bin"
+    asset = work / "renderer.bin"
 
     def record_renderer(address):
         renderer = compile_at(address)
         asset.write_bytes(struct.pack("<I", address) + renderer)
         return renderer
 
-    eg, _ = build(source.read_bytes(), renderer_for_address=record_renderer)
-    expected = json.loads(REFERENCE.read_text(encoding="utf-8"))["build"]["eg_sha256"]
+    eg, _ = build(source.read_bytes(), renderer_for_address=record_renderer, af_on_af_c=True)
+    expected = json.loads(REFERENCE.read_text(encoding="utf-8"))["eg_sha256"]
     if hashlib.sha256(eg).hexdigest() != expected:
-        raise ValueError("The renderer did not reproduce the V4 reference EG. Check Clang and LLD.")
+        raise ValueError("The renderer did not reproduce the V1.5 reference EG. Check Clang and LLD.")
     return asset
 
 
@@ -60,7 +60,7 @@ def main():
     parser.add_argument("--source", type=Path, default=ROOT / ".private/stock/Z_7_0380.bin",
                         help="Original stock input used to verify the packaged renderer")
     parser.add_argument("--llvm-bin", type=Path, help="Directory containing reference Clang and LLD")
-    parser.add_argument("--output", type=Path, default=ROOT / ".private/dist/z7-v4",
+    parser.add_argument("--output", type=Path, default=ROOT / ".private/dist/z7-v1.5",
                         help="New directory for the standalone .exe")
     args = parser.parse_args()
     if sys.platform != "win32" or struct.calcsize("P") != 8:
@@ -86,6 +86,9 @@ def main():
         for variable, name in (("TCL_LIBRARY", "tcl8.6"), ("TK_LIBRARY", "tk8.6")):
             if (tcl / name).is_dir():
                 env.setdefault(variable, (tcl / name).as_posix())
+        # PyInstaller can succeed while omitting tkinter if Tcl fails to initialize.
+        subprocess.run([sys.executable, "-c", "import tkinter; tkinter.Tcl()"],
+                       cwd=ROOT, env=env, check=True)
         output.mkdir(parents=True)
         subprocess.run([
             sys.executable, "-m", "PyInstaller", "--onefile", "--windowed", "--noupx",

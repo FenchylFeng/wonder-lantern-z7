@@ -1,4 +1,4 @@
-"""Standalone Windows front end for the independent Z7 V4 build."""
+"""Standalone Windows front end for the independent Z7 V1.5 build."""
 
 import binascii
 import hashlib
@@ -16,7 +16,8 @@ from z30_extensions.container import Z7_CONTAINER_SHA256, Z7_CONTAINER_SIZE
 from z30_extensions.features.display_type_a_z7 import build
 
 
-TITLE = "Nikon Z7 C3.80 自定义固件 V4"
+VERSION = "V1.5"
+TITLE = f"Nikon Z7 C3.80 自定义固件 {VERSION}"
 NIKON_URL = "https://downloadcenter.nikonimglib.com/zh-cn/download/fw/558.html"
 PROJECT_URL = "https://github.com/FenchylFeng/wonder-lantern-z7"
 WARNING = (
@@ -37,17 +38,17 @@ def generate_firmware(source, folder):
     if len(container) != Z7_CONTAINER_SIZE or hashlib.sha256(container).hexdigest() != Z7_CONTAINER_SHA256:
         raise ValueError("原厂固件校验失败，请选择尼康官网的 Z7 C3.80 原版 Z_7_0380.bin。")
 
-    reference = json.loads((ASSETS / "v4-validation.json").read_text(encoding="utf-8"))["build"]
-    renderer = (ASSETS / "v4-renderer.bin").read_bytes()
+    reference = json.loads((ASSETS / "v1.5-reference.json").read_text(encoding="utf-8"))
+    renderer = (ASSETS / "renderer.bin").read_bytes()
     (renderer_address,) = struct.unpack_from("<I", renderer)
 
     def renderer_for_address(address):
         if address != renderer_address:
-            raise ValueError("V4 渲染器的链接地址与固件不匹配。")
+            raise ValueError(f"{VERSION} 渲染器的链接地址与固件不匹配。")
         return renderer[4:]
 
-    eg, _ = build(container, renderer_for_address=renderer_for_address)
-    with TemporaryDirectory(prefix=".z7-v4-", dir=folder) as temporary:
+    eg, _ = build(container, renderer_for_address=renderer_for_address, af_on_af_c=True)
+    with TemporaryDirectory(prefix=".z7-v15-", dir=folder) as temporary:
         candidate = Path(temporary) / "display.emulator.eg.bin"
         candidate.write_bytes(eg)
         saved = candidate.read_bytes()
@@ -107,7 +108,7 @@ class FirmwareApp:
         self.add_path(panel, 4, self.folder, "选择位置", self.pick_folder)
         action = ttk.Frame(panel)
         action.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(2, 15))
-        self.generate = ttk.Button(action, text="生成V4固件", style="Primary.TButton",
+        self.generate = ttk.Button(action, text=f"生成{VERSION}固件", style="Primary.TButton",
                                    command=self.confirm)
         self.generate.pack(side="left")
         ttk.Label(action, textvariable=self.status).pack(side="left", padx=12)
